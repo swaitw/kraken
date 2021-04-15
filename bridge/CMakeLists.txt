@@ -58,6 +58,17 @@ if ($ENV{KRAKEN_JS_ENGINE} MATCHES "jsc")
     list(APPEND BRIDGE_LINK_LIBS
             JavaScriptCore
             )
+  elseif (${IS_WINDOWS})
+    list(APPEND BRIDGE_INCLUDE
+            ${CMAKE_CURRENT_SOURCE_DIR}/../third_party/JavaScriptCore/include
+            )
+  add_library(JavaScriptCore SHARED IMPORTED)
+  set_target_properties(JavaScriptCore PROPERTIES IMPORTED_LOCATION
+    "${CMAKE_CURRENT_SOURCE_DIR}/../third_party/JavaScriptCore/lib/windows/JavaScriptCore.dll"
+    )
+  list(APPEND BRIDGE_LINK_LIBS
+    JavaScriptCore
+    )
   else ()
     if (EXISTS ${DEBUG_JSC_ENGINE})
       list(APPEND BRIDGE_INCLUDE ${DEBUG_JSC_ENGINE}/Headers)
