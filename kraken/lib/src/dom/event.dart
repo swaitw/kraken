@@ -132,10 +132,10 @@ class EventInit {
 class MouseEvent extends Event {
   final MouseEventInit _mouseEventInit;
 
-  int get clientX => _mouseEventInit?.clientX;
-  int get clientY => _mouseEventInit?.clientY;
-  int get offsetX => _mouseEventInit?.offsetX;
-  int get offsetY => _mouseEventInit?.offsetY;
+  double get clientX => _mouseEventInit?.clientX;
+  double get clientY => _mouseEventInit?.clientY;
+  double get offsetX => _mouseEventInit?.offsetX;
+  double get offsetY => _mouseEventInit?.offsetY;
 
   MouseEvent(String type, [MouseEventInit mouseEventInit])
       : _mouseEventInit = mouseEventInit, super(type, mouseEventInit);
@@ -152,18 +152,18 @@ class MouseEvent extends Event {
 }
 
 class MouseEventInit extends EventInit {
-  final int clientX;
-  final int clientY;
-  final int offsetX;
-  final int offsetY;
+  final double clientX;
+  final double clientY;
+  final double offsetX;
+  final double offsetY;
 
   MouseEventInit({
     bool bubbles = false,
     bool cancelable = false,
-    this.clientX = 0,
-    this.clientY = 0,
-    this.offsetX = 0,
-    this.offsetY = 0,
+    this.clientX = 0.0,
+    this.clientY = 0.0,
+    this.offsetX = 0.0,
+    this.offsetY = 0.0,
   })
       : super(bubbles: bubbles, cancelable: cancelable);
 }
@@ -254,7 +254,7 @@ class CustomEvent extends Event {
 class InputEvent extends Event {
   // A String containing the type of input that was made.
   // There are many possible values, such as insertText,
-  // deleteContentBackward, insertFromPaste, and formatBold. 
+  // deleteContentBackward, insertFromPaste, and formatBold.
   final String inputType;
   final String data;
 
