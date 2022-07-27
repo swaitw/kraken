@@ -166,7 +166,7 @@ describe('Overflow', () => {
       div1.scrollLeft = 20;
       div1.scrollTop = 20;
 
-      await snapshot(0.1);
+      await snapshot();
       done();
     });
   });
@@ -414,5 +414,40 @@ describe('Overflow', () => {
       await snapshot();
       done();
     }, 200);
+  });
+
+  it('should work with value change to empty string', async (done) => {
+    let div;
+    let item;
+    div = createElement(
+    'div',
+      {
+        style: {
+          width: '100px',
+          height: '100px',
+          background: 'yellow',
+          overflow: 'hidden'
+        },
+      },
+      [
+        (item = createElement('div', {
+          style: {
+            width: '200px',
+            height: '200px',
+            backgroundColor: 'green',
+          }
+        }))
+      ]
+    );
+
+    document.body.appendChild(div);
+
+    await snapshot();
+
+    requestAnimationFrame(async () => {
+      div.style.overflow = '';
+      await snapshot();
+      done();
+    });
   });
 });

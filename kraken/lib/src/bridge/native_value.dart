@@ -1,16 +1,12 @@
 /*
- * Copyright (C) 2021-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
  */
-
 import 'dart:collection';
 import 'dart:convert';
 import 'dart:ffi';
 
 import 'package:ffi/ffi.dart';
 import 'package:kraken/bridge.dart';
-
-import 'from_native.dart';
 
 class NativeValue extends Struct {
   @Double()
@@ -40,7 +36,7 @@ enum JSPointerType {
   NativeFunctionContext,
   NativeBoundingClientRect,
   NativeCanvasRenderingContext2D,
-  NativeEventTarget
+  NativeBindingObject
 }
 
 typedef AnonymousNativeFunction = dynamic Function(List<dynamic> args);
@@ -68,9 +64,12 @@ dynamic fromNativeValue(Pointer<NativeValue> nativeValue) {
   if (nativeValue == nullptr) return null;
 
   JSValueType type = JSValueType.values[nativeValue.ref.tag];
-  switch(type) {
+  switch (type) {
     case JSValueType.TAG_STRING:
-      return nativeStringToString(Pointer.fromAddress(nativeValue.ref.u));
+      Pointer<NativeString> nativeString = Pointer.fromAddress(nativeValue.ref.u);
+      String result = nativeStringToString(nativeString);
+      freeNativeString(nativeString);
+      return result;
     case JSValueType.TAG_INT:
       return nativeValue.ref.u;
     case JSValueType.TAG_BOOL:
@@ -86,8 +85,8 @@ dynamic fromNativeValue(Pointer<NativeValue> nativeValue) {
           return Pointer.fromAddress(nativeValue.ref.u).cast<NativeBoundingClientRect>();
         case JSPointerType.NativeCanvasRenderingContext2D:
           return Pointer.fromAddress(nativeValue.ref.u).cast<NativeCanvasRenderingContext2D>();
-        case JSPointerType.NativeEventTarget:
-          return Pointer.fromAddress(nativeValue.ref.u).cast<NativeEventTarget>();
+        case JSPointerType.NativeBindingObject:
+          return Pointer.fromAddress(nativeValue.ref.u).cast<NativeBindingObject>();
         default:
           return Pointer.fromAddress(nativeValue.ref.u);
       }
@@ -95,12 +94,14 @@ dynamic fromNativeValue(Pointer<NativeValue> nativeValue) {
     case JSValueType.TAG_ASYNC_FUNCTION:
       break;
     case JSValueType.TAG_JSON:
-      return jsonDecode(nativeStringToString(Pointer.fromAddress(nativeValue.ref.u)));
+      Pointer<NativeString> nativeString = Pointer.fromAddress(nativeValue.ref.u);
+      dynamic value = jsonDecode(nativeStringToString(nativeString));
+      freeNativeString(nativeString);
+      return value;
   }
 }
 
-void toNativeValue(Pointer<NativeValue> target, dynamic value) {
-
+void toNativeValue(Pointer<NativeValue> target, value) {
   if (value == null) {
     target.ref.tag = JSValueType.TAG_NULL.index;
   } else if (value is int) {
@@ -122,8 +123,8 @@ void toNativeValue(Pointer<NativeValue> target, dynamic value) {
       target.ref.float64 = JSPointerType.NativeBoundingClientRect.index.toDouble();
     } else if (value is Pointer<NativeCanvasRenderingContext2D>) {
       target.ref.float64 = JSPointerType.NativeCanvasRenderingContext2D.index.toDouble();
-    } else if (value is Pointer<NativeEventTarget>) {
-      target.ref.float64 = JSPointerType.NativeEventTarget.index.toDouble();
+    } else if (value is Pointer<NativeBindingObject>) {
+      target.ref.float64 = JSPointerType.NativeBindingObject.index.toDouble();
     }
   } else if (value is AsyncAnonymousNativeFunction) {
     int id = _functionId++;

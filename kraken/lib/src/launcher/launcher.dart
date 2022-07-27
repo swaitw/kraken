@@ -1,27 +1,32 @@
 /*
- * Copyright (C) 2019-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
  */
 
 import 'dart:io';
 import 'dart:ui';
-
+import 'dart:async';
 import 'package:flutter/rendering.dart';
 import 'package:kraken/dom.dart';
 import 'package:kraken/kraken.dart';
-import 'package:kraken/module.dart';
-import 'package:kraken/src/launcher/controller.dart';
-
-import 'bundle.dart';
 
 typedef ConnectedCallback = void Function();
 
+const String BUNDLE_URL = 'KRAKEN_BUNDLE_URL';
+const String BUNDLE_PATH = 'KRAKEN_BUNDLE_PATH';
+const String ENABLE_DEBUG = 'KRAKEN_ENABLE_DEBUG';
+const String ENABLE_PERFORMANCE_OVERLAY = 'KRAKEN_ENABLE_PERFORMANCE_OVERLAY';
 const _white = Color(0xFFFFFFFF);
 
+String? getBundleURLFromEnv() {
+  return Platform.environment[BUNDLE_URL];
+}
+
+String? getBundlePathFromEnv() {
+  return Platform.environment[BUNDLE_PATH];
+}
+
 void launch({
-  String? bundleURL,
-  String? bundlePath,
-  String? bundleContent,
+  KrakenBundle? bundle,
   bool? debugEnableInspector,
   Color background = _white,
   DevToolsService? devToolsService,
@@ -34,22 +39,29 @@ void launch({
   VoidCallback? _ordinaryOnMetricsChanged = window.onMetricsChanged;
 
   Future<void> _initKrakenApp() async {
+    KrakenNativeChannel channel = KrakenNativeChannel();
+
+    if (bundle == null) {
+      String? backendEntrypointUrl = getBundleURLFromEnv() ?? getBundlePathFromEnv();
+      backendEntrypointUrl ??= await channel.getUrl();
+      if (backendEntrypointUrl != null) {
+        bundle = KrakenBundle.fromUrl(backendEntrypointUrl);
+      }
+    }
+
     KrakenController controller = KrakenController(null, window.physicalSize.width / window.devicePixelRatio, window.physicalSize.height / window.devicePixelRatio,
       background: background,
       showPerformanceOverlay: showPerformanceOverlay ?? Platform.environment[ENABLE_PERFORMANCE_OVERLAY] != null,
-      methodChannel: KrakenNativeChannel(),
+      methodChannel: channel,
+      entrypoint: bundle,
       devToolsService: devToolsService,
-      httpClientInterceptor: httpClientInterceptor
+      httpClientInterceptor: httpClientInterceptor,
+      autoExecuteEntrypoint: false,
     );
 
-    controller.view.attachView(RendererBinding.instance!.renderView);
+    controller.view.attachTo(RendererBinding.instance!.renderView);
 
-    await controller.loadBundle(
-        bundleURL: bundleURL,
-        bundlePath: bundlePath,
-        bundleContent: bundleContent);
-
-    await controller.evalBundle();
+    await controller.executeEntrypoint();
   }
 
   // window.physicalSize are Size.zero when app first loaded. This only happened on Android and iOS physical devices with release build.

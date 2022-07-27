@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2019-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
  */
 import 'dart:convert';
 import 'dart:ffi';
@@ -9,6 +8,14 @@ import 'dart:typed_data';
 import 'package:ffi/ffi.dart';
 import 'package:kraken/bridge.dart';
 import 'package:kraken/dom.dart';
+import 'package:kraken/gesture.dart';
+import 'package:kraken/rendering.dart';
+
+enum AppearEventType {
+  none,
+  appear,
+  disappear
+}
 
 const String EVENT_CLICK = 'click';
 const String EVENT_INPUT = 'input';
@@ -53,11 +60,96 @@ const String EVENT_SCALE = 'scale';
 const String EVENT_LONG_PRESS = 'longpress';
 const String EVENT_DOUBLE_CLICK = 'dblclick';
 const String EVENT_DRAG = 'drag';
+const String EVENT_RESIZE = 'resize';
 
 const String EVENT_STATE_START = 'start';
 const String EVENT_STATE_UPDATE = 'update';
 const String EVENT_STATE_END = 'end';
+const String EVENT_STATE_CANCEL = 'cancel';
 
+mixin ElementEventMixin on ElementBase {
+  AppearEventType _prevAppearState = AppearEventType.none;
+
+  void clearEventResponder(RenderEventListenerMixin renderBox) {
+    renderBox.getEventTarget = null;
+    renderBox.getGestureDispather = null;
+  }
+
+  void ensureEventResponderBound() {
+    // Must bind event responder on render box model whatever there is no event listener.
+    RenderBoxModel? renderBox = renderBoxModel;
+    if (renderBox != null) {
+      // Make sure pointer responder bind.
+      renderBox.getEventTarget = getEventTarget;
+      renderBox.getGestureDispather = getGestureDispather;
+
+      if (_hasIntersectionObserverEvent()) {
+        renderBox.addIntersectionChangeListener(handleIntersectionChange);
+        // Mark the compositing state for this render object as dirty
+        // cause it will create new layer.
+        renderBox.markNeedsCompositingBitsUpdate();
+      } else {
+        // Remove listener when no intersection related event
+        renderBox.removeIntersectionChangeListener(handleIntersectionChange);
+      }
+    }
+  }
+
+  bool _hasIntersectionObserverEvent() {
+    return hasEventListener(EVENT_APPEAR) || hasEventListener(EVENT_DISAPPEAR) || hasEventListener(EVENT_INTERSECTION_CHANGE);
+  }
+
+  @override
+  void addEventListener(String eventType, EventHandler handler) {
+    super.addEventListener(eventType, handler);
+    RenderBoxModel? renderBox = renderBoxModel;
+    if (renderBox != null) {
+      ensureEventResponderBound();
+    }
+  }
+
+  @override
+  void removeEventListener(String eventType, EventHandler handler) {
+    super.removeEventListener(eventType, handler);
+    RenderBoxModel? renderBox = renderBoxModel;
+    if (renderBox != null) {
+      ensureEventResponderBound();
+    }
+  }
+
+  EventTarget getEventTarget() {
+    return this;
+  }
+
+  GestureDispatcher getGestureDispather() {
+    return ownerDocument.controller.gestureDispatcher;
+  }
+
+  void handleAppear() {
+    if (_prevAppearState == AppearEventType.appear) return;
+    _prevAppearState = AppearEventType.appear;
+
+    dispatchEvent(AppearEvent());
+  }
+
+  void handleDisappear() {
+    if (_prevAppearState == AppearEventType.disappear) return;
+    _prevAppearState = AppearEventType.disappear;
+
+    dispatchEvent(DisappearEvent());
+  }
+
+  void handleIntersectionChange(IntersectionObserverEntry entry) {
+    dispatchEvent(IntersectionChangeEvent(entry.intersectionRatio));
+    if (entry.intersectionRatio > 0) {
+      handleAppear();
+    } else {
+      handleDisappear();
+    }
+  }
+}
+
+// @TODO: inherit BindingObject to receive value from Cpp side.
 /// reference: https://developer.mozilla.org/zh-CN/docs/Web/API/Event
 class Event {
   String type;
@@ -68,6 +160,7 @@ class Event {
   int timeStamp = DateTime.now().millisecondsSinceEpoch;
   bool defaultPrevented = false;
   bool _immediateBubble = true;
+  bool propagationStopped = false;
 
   Event(this.type, [EventInit? init]) {
     init ??= EventInit();
@@ -95,6 +188,7 @@ class Event {
     Pointer<RawNativeEvent> event = malloc.allocate<RawNativeEvent>(sizeOf<RawNativeEvent>());
 
     EventTarget? _target = target;
+    EventTarget? _currentTarget = currentTarget;
 
     List<int> methods = [
       stringToNativeString(type).address,
@@ -102,8 +196,8 @@ class Event {
       cancelable ? 1 : 0,
       timeStamp,
       defaultPrevented ? 1 : 0,
-      _target != null ? _target.nativeEventTargetPtr.address : nullptr.address,
-      nullptr.address
+      (_target != null && _target.pointer != null) ? _target.pointer!.address : nullptr.address,
+      (_currentTarget != null && _currentTarget.pointer != null) ? _currentTarget.pointer!.address : nullptr.address,
     ];
 
     int totalLength = methods.length + extraLength;
@@ -200,7 +294,6 @@ class MouseEventInit extends EventInit {
   })
       : super(bubbles: bubbles, cancelable: cancelable);
 }
-
 
 class GestureEventInit extends EventInit {
   final String state;
@@ -376,7 +469,7 @@ class MediaError extends Event {
 /// reference: https://developer.mozilla.org/en-US/docs/Web/API/MessageEvent
 class MessageEvent extends Event {
   /// The data sent by the message emitter.
-  final String data;
+  final dynamic data;
 
   /// A USVString representing the origin of the message emitter.
   final String origin;
@@ -386,7 +479,7 @@ class MessageEvent extends Event {
   @override
   Pointer<RawNativeMessageEvent> toRaw([int methodLength = 0]) {
     List<int> methods = [
-      stringToNativeString(data).address,
+      stringToNativeString(jsonEncode(data)).address,
       stringToNativeString(origin).address
     ];
 
@@ -504,7 +597,7 @@ class Touch {
   final double azimuthAngle;
   final TouchType touchType;
 
-  Touch({
+  const Touch({
     required this.identifier,
     required this.target,
     this.clientX = 0,
@@ -525,7 +618,7 @@ class Touch {
   Pointer<NativeTouch> toNative() {
     Pointer<NativeTouch> nativeTouch = malloc.allocate<NativeTouch>(sizeOf<NativeTouch>());
     nativeTouch.ref.identifier = identifier;
-    nativeTouch.ref.target = target.nativeEventTargetPtr;
+    nativeTouch.ref.target = target.pointer!;
     nativeTouch.ref.clientX = clientX;
     nativeTouch.ref.clientY = clientY;
     nativeTouch.ref.screenX = screenX;

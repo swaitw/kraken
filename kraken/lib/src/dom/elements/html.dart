@@ -1,43 +1,48 @@
 /*
- * Copyright (C) 2019-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
  */
-
-import 'dart:ffi';
-
-import 'package:flutter/foundation.dart';
-import 'package:kraken/bridge.dart';
 import 'package:kraken/css.dart';
 import 'package:kraken/dom.dart';
-import 'package:kraken/kraken.dart';
+import 'package:kraken/foundation.dart';
 
 const String HTML = 'HTML';
 const Map<String, dynamic> _defaultStyle = {
   DISPLAY: BLOCK,
-  OVERFLOW: AUTO
 };
 
 class HTMLElement extends Element {
   static Map<String, dynamic> defaultStyle = _defaultStyle;
-  HTMLElement(int targetId, Pointer<NativeEventTarget> nativePtr, ElementManager elementManager)
-      : super(
-      targetId,
-      nativePtr,
-      elementManager,
-      defaultStyle: defaultStyle
-  ) {
-    if (kProfileMode) {
-      PerformanceTiming.instance().mark(PERF_ROOT_ELEMENT_PROPERTY_INIT);
+  HTMLElement([BindingContext? context])
+      : super(context, defaultStyle: defaultStyle);
+
+  @override
+  void dispatchEvent(Event event) {
+    // Scroll event proxy to document.
+    if (event.type == EVENT_SCROLL) {
+      // https://www.w3.org/TR/2014/WD-DOM-Level-3-Events-20140925/#event-type-scroll
+      // When dispatched on the Document element, this event type must bubble to the Window object.
+      event.bubbles = true;
+      ownerDocument.dispatchEvent(event);
+      return;
     }
-    elementManager.viewportElement = this;
-    // Init renderer
-    willAttachRenderer();
-    // Init default render style value
-    style.applyTargetProperties();
-    RenderStyle renderStyle = renderBoxModel!.renderStyle;
-    // Must init with viewport width
-    renderStyle.width = elementManager.viewportWidth;
-    renderStyle.height = elementManager.viewportHeight;
-    didAttachRenderer();
+    super.dispatchEvent(event);
+  }
+
+  @override
+  void setRenderStyle(String property, String present) {
+    switch (property) {
+    // Visible should be interpreted as auto and clip should be interpreted as hidden when overflow apply to html.
+    // https://drafts.csswg.org/css-overflow-3/#overflow-propagation
+      case OVERFLOW:
+      case OVERFLOW_X:
+      case OVERFLOW_Y:
+        if (present == VISIBLE || present == '') {
+          present = AUTO;
+        } else if (present == CLIP) {
+          present = HIDDEN;
+        }
+        break;
+    }
+    super.setRenderStyle(property, present);
   }
 }

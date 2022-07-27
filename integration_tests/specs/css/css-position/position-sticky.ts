@@ -79,7 +79,7 @@ describe('position-sticky', () => {
     spacer = createElementWithStyle('div', {
       height: '200vh',
       'background-image':
-        'url(https://kraken.oss-cn-hangzhou.aliyuncs.com/images/ruler-v-50px.png)',
+        'url(assets/ruler-v-50px.png)',
       'background-repeat': 'repeat',
       'box-sizing': 'border-box',
     });
@@ -196,10 +196,7 @@ describe('position-sticky', () => {
       scroller.scrollTop = 100;
     });
 
-    // wait for image load
-    await sleep(1);
-
-    await snapshot();
+    await snapshot(0.2);
   });
   it('child-multicolumn', async () => {
     let contents;
@@ -274,7 +271,7 @@ describe('position-sticky', () => {
       scroller.scrollTop = 100;
     });
 
-    await snapshot(0.1);
+    await snapshot(0.2);
   });
   it('flexbox-ref', async () => {
     let flexItem;
@@ -1512,8 +1509,8 @@ describe('position-sticky', () => {
 
     await snapshot();
   });
-  // @TODO: nested children size does not count into scroll container size
-  xit('left', async () => {
+
+  it('left', async () => {
     let prepadding;
     let filter;
     let sticky;
@@ -2267,8 +2264,8 @@ describe('position-sticky', () => {
 
     await snapshot();
   });
-  // @TODO: nested children size does not count into scroll container size
-  xit('nested-left', async () => {
+
+  it('nested-left', async () => {
     let prepadding;
     let filter;
     let sticky;
@@ -2353,8 +2350,7 @@ describe('position-sticky', () => {
     await snapshot();
   });
 
-  // @TODO: nested children size does not count into scroll container size
-  xit('nested-right', async () => {
+  it('nested-right', async () => {
     let prepadding;
     let filter;
     let sticky;

@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2021-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
  */
 
 import 'package:flutter/rendering.dart';
@@ -27,11 +26,11 @@ abstract class ObjectElementClient {
 
   dynamic handleJSCall(String method, List argv);
 
-  void setStyle(String key, dynamic value);
+  void setStyle(String key, value);
 
   void dispose();
 
-  void setProperty(String key, dynamic value);
+  void setProperty(String key, value);
 
   dynamic getProperty(String key);
 

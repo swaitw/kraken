@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2021-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
  */
 
 import 'package:flutter/rendering.dart';
@@ -45,13 +44,14 @@ class RenderPreferredSize extends RenderProxyBox {
 }
 
 /// A placeholder for positioned RenderBox
-class RenderPositionHolder extends RenderPreferredSize {
-  RenderPositionHolder({
+class RenderPositionPlaceholder extends RenderPreferredSize {
+  RenderPositionPlaceholder({
     required Size preferredSize,
     RenderBox? child,
   }) : super(preferredSize: preferredSize, child: child);
 
-  RenderBoxModel? realDisplayedBox;
+  // Real position of this renderBox.
+  RenderBoxModel? positioned;
 
   // Box size equals to RenderBox.size to avoid flutter complain when read size property.
   Size? _boxSize;
@@ -71,8 +71,14 @@ class RenderPositionHolder extends RenderPreferredSize {
   bool hitTest(BoxHitTestResult result, {Offset? position}) {
     return false;
   }
+
+  // Get the layout offset of renderObject to its ancestor which does not include the paint offset
+  // such as scroll or transform.
+  Offset getOffsetToAncestor(Offset point, RenderObject ancestor, { bool excludeScrollOffset = false }) {
+    return MatrixUtils.transformPoint(getLayoutTransformTo(this, ancestor, excludeScrollOffset: excludeScrollOffset), point);
+  }
 }
 
-bool isPositionHolder(RenderBox box) {
-  return box is RenderPositionHolder;
+bool isPositionPlaceholder(RenderBox box) {
+  return box is RenderPositionPlaceholder;
 }

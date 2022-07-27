@@ -1,10 +1,8 @@
 /*
- * Copyright (C) 2021-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
  */
 import 'dart:io';
 
-import 'package:kraken/foundation.dart';
 import 'package:kraken/kraken.dart';
 
 // TODO: Don't use header to mark context.
@@ -99,11 +97,8 @@ String getOrigin(Uri uri) {
 }
 
 // @TODO: Remove controller dependency.
-Uri getReferrer(int? contextId) {
-  KrakenController? controller = KrakenController
-      .getControllerOfJSContextId(contextId);
-  if (controller != null) {
-    return controller.referrer;
-  }
-  return KrakenController.fallbackBundleUri(contextId ?? 0);
+Uri getEntrypointUri(int? contextId) {
+  KrakenController? controller = KrakenController.getControllerOfJSContextId(contextId);
+  String url = controller?.url ?? '';
+  return Uri.tryParse(url) ?? KrakenController.fallbackBundleUri(contextId ?? 0);
 }

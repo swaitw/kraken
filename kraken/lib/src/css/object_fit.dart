@@ -1,30 +1,22 @@
 /*
- * Copyright (C) 2019-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
  */
 
 import 'package:flutter/rendering.dart';
 import 'package:kraken/css.dart';
 
-mixin CSSObjectFitMixin on RenderStyleBase {
-  BoxFit _objectFit = BoxFit.fill;
-  BoxFit get objectFit {
-    return _objectFit;
-  }
-  set objectFit(BoxFit value) {
+mixin CSSObjectFitMixin on RenderStyle {
+
+  @override
+  BoxFit get objectFit => _objectFit ?? BoxFit.fill;
+  BoxFit? _objectFit;
+  set objectFit(BoxFit? value) {
     if (_objectFit == value) return;
     _objectFit = value;
+    renderBoxModel?.markNeedsLayout();
   }
 
-  void updateObjectFit(String property, String value, {bool shouldMarkNeedsLayout = true}) {
-    RenderStyle renderStyle = this as RenderStyle;
-    renderStyle.objectFit = _getBoxFit(value);
-    if (shouldMarkNeedsLayout) {
-      renderBoxModel!.markNeedsLayout();
-    }
-  }
-
-  BoxFit _getBoxFit(String fit) {
+  static BoxFit resolveBoxFit(String fit) {
     switch (fit) {
       case 'contain':
         return BoxFit.contain;

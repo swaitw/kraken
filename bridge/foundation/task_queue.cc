@@ -1,13 +1,12 @@
 /*
- * Copyright (C) 2021 Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
  */
 
 #include "task_queue.h"
 
 namespace foundation {
 
-int32_t TaskQueue::registerTask(const Task &task, void *data) {
+int32_t TaskQueue::registerTask(const Task& task, void* data) {
   std::lock_guard<std::mutex> guard(queue_mutex_);
   auto taskData = new TaskData(task, data);
   m_map[id++] = taskData;
@@ -25,11 +24,11 @@ void TaskQueue::dispatchTask(int32_t taskId) {
 
 void TaskQueue::flushTask() {
   std::lock_guard<std::mutex> guard(queue_mutex_);
-  for(auto &m : m_map) {
+  for (auto& m : m_map) {
     m.second->task(m.second->data);
     delete m.second;
   }
   m_map.clear();
 }
 
-} // namespace foundation
+}  // namespace foundation

@@ -1,3 +1,6 @@
+/*
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
+ */
 // Copyright 2014 The Flutter Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -180,7 +183,7 @@ mixin ElementInspectorService {
   ///
   /// This will be called automatically for service extensions registered via
   /// [registerBoolServiceExtension].
-  void _postExtensionStateChangedEvent(String name, dynamic value) {
+  void _postExtensionStateChangedEvent(String name, value) {
     postEvent(
       'Flutter.ServiceExtensionStateChanged',
       <String, dynamic>{

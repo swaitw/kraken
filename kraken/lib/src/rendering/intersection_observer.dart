@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2021-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
  */
 import 'dart:async';
 import 'dart:math' show max;
@@ -25,10 +24,17 @@ typedef IntersectionChangeCallback = void Function(
 
 mixin RenderIntersectionObserverMixin on RenderBox {
   IntersectionChangeCallback? _onIntersectionChange;
-  IntersectionObserverLayer? intersectionObserverLayer;
+
+  final LayerHandle<IntersectionObserverLayer> _intersectionObserverLayer = LayerHandle<IntersectionObserverLayer>();
+
+  bool intersectionObserverAlwaysNeedsCompositing() => _listeners != null && _listeners!.isNotEmpty;
 
   /// A list of event handlers
   List<IntersectionChangeCallback>? _listeners;
+
+  void disposeIntersectionObserverLayer() {
+    _intersectionObserverLayer.layer = null;
+  }
 
   void addIntersectionChangeListener(IntersectionChangeCallback callback) {
     // Init things
@@ -36,7 +42,10 @@ mixin RenderIntersectionObserverMixin on RenderBox {
       _listeners = List.empty(growable: true);
       _onIntersectionChange = _dispatchChange;
     }
-    _listeners!.add(callback);
+    // Avoid same listener added twice.
+    if (!_listeners!.contains(callback)) {
+      _listeners!.add(callback);
+    }
   }
 
   void clearIntersectionChangeListeners() {
@@ -51,12 +60,7 @@ mixin RenderIntersectionObserverMixin on RenderBox {
       return;
     }
 
-    for (int i = 0; i < _listeners!.length; i += 1) {
-      if (_listeners![i] == callback) {
-        _listeners!.removeAt(i);
-        break;
-      }
-    }
+    _listeners!.remove(callback);
     if (_listeners!.isEmpty) {
       _listeners = null;
       _onIntersectionChange = null;
@@ -80,18 +84,18 @@ mixin RenderIntersectionObserverMixin on RenderBox {
       return;
     }
 
-    if (intersectionObserverLayer == null) {
-      intersectionObserverLayer = IntersectionObserverLayer(
+    if (_intersectionObserverLayer.layer == null) {
+      _intersectionObserverLayer.layer = IntersectionObserverLayer(
           elementSize: size,
           paintOffset: offset,
           onIntersectionChange: _onIntersectionChange!
       );
     } else {
-      intersectionObserverLayer!.elementSize = semanticBounds.size;
-      intersectionObserverLayer!.paintOffset = offset;
+      _intersectionObserverLayer.layer!.elementSize = semanticBounds.size;
+      _intersectionObserverLayer.layer!.paintOffset = offset;
     }
 
-    context.pushLayer(intersectionObserverLayer!, callback, offset);
+    context.pushLayer(_intersectionObserverLayer.layer!, callback, offset);
   }
 }
 
@@ -102,7 +106,6 @@ class IntersectionObserverLayer extends ContainerLayer {
       required this.onIntersectionChange})
       : // TODO: This is zero for box element. For sliver element, this offset points to the start of the element which may be outside the viewport.
         _elementOffset = Offset.zero,
-        _layerOffset = Offset.zero,
         _elementSize = elementSize,
         _paintOffset = paintOffset;
 
@@ -134,9 +137,6 @@ class IntersectionObserverLayer extends ContainerLayer {
     _paintOffset = value;
   }
 
-  /// Last known layer offset supplied to [addToScene].  Never null.
-  Offset _layerOffset;
-
   final IntersectionChangeCallback onIntersectionChange;
 
   /// Keeps track of the last known visibility state of a element.
@@ -145,6 +145,9 @@ class IntersectionObserverLayer extends ContainerLayer {
   /// changed.  Stores entries only for visible element objects;
   /// entries for non-visible ones are actively removed.
   IntersectionObserverEntry? _lastIntersectionInfo;
+
+  /// Cache of layer transform to root layer.
+  static final Map<int, Matrix4> _layerTransformCache = {};
 
   /// Converts a [Rect] in local coordinates of the specified [Layer] to a new
   /// [Rect] in global coordinates.
@@ -167,7 +170,15 @@ class IntersectionObserverLayer extends ContainerLayer {
     if (layerChain.isNotEmpty) {
       var parent = layerChain.first;
       for (final child in layerChain) {
-        (parent as ContainerLayer).applyTransform(child, transform);
+        Matrix4? cachedTransform = _layerTransformCache[child.hashCode];
+        // Get the transform of parent layer to root layer directly if exists.
+        if (cachedTransform != null) {
+          transform = cachedTransform.clone();
+        } else {
+          (parent as ContainerLayer).applyTransform(child, transform);
+          // Cache the transform of parent layer to root layer.
+          _layerTransformCache[child.hashCode] = transform.clone();
+        }
         parent = child;
       }
     }
@@ -176,10 +187,9 @@ class IntersectionObserverLayer extends ContainerLayer {
 
   /// See [Layer.addToScene].
   @override
-  void addToScene(ui.SceneBuilder builder, [Offset layerOffset = Offset.zero]) {
-    _layerOffset = layerOffset;
+  void addToScene(ui.SceneBuilder builder) {
     _scheduleIntersectionObservationUpdate();
-    super.addToScene(builder, layerOffset);
+    super.addToScene(builder);
   }
 
   /// See [AbstractNode.attach].
@@ -236,7 +246,7 @@ class IntersectionObserverLayer extends ContainerLayer {
   /// global coordinates.
   Rect _computeElementBounds() {
     final r = _localRectToGlobal(this, _elementOffset & _elementSize);
-    return r.shift(_paintOffset + _layerOffset);
+    return r.shift(_paintOffset);
   }
 
   // https://github.com/google/flutter.widgets/blob/master/packages/visibility_detector/lib/src/visibility_detector_layer.dart#L130
@@ -316,6 +326,7 @@ class IntersectionObserverLayer extends ContainerLayer {
       layer._fireCallback(info);
     }
     _updated.clear();
+    _layerTransformCache.clear();
   }
 }
 

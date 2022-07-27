@@ -1,15 +1,13 @@
 /*
- * Copyright (C) 2019-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
  */
 
-import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
-import 'package:kraken/bridge.dart';
+import 'package:flutter/foundation.dart';
 import 'package:kraken/foundation.dart';
 import 'package:kraken/module.dart';
-import 'package:meta/meta.dart';
 
 String EMPTY_STRING = '';
 
@@ -17,12 +15,15 @@ class FetchModule extends BaseModule {
   @override
   String get name => 'Fetch';
 
+  bool _disposed = false;
+
   FetchModule(ModuleManager? moduleManager) : super(moduleManager);
 
   @override
   void dispose() {
     _httpClient?.close(force: true);
     _httpClient = null;
+    _disposed = true;
   }
 
   HttpClient? _httpClient;
@@ -32,7 +33,7 @@ class FetchModule extends BaseModule {
     final Uri parsedUri = Uri.parse(input);
 
     if (moduleManager != null) {
-      Uri base = Uri.parse(moduleManager!.controller.href);
+      Uri base = Uri.parse(moduleManager!.controller.url);
       UriParser uriParser = moduleManager!.controller.uriParser!;
       return uriParser.resolve(base, parsedUri);
     } else {
@@ -45,7 +46,7 @@ class FetchModule extends BaseModule {
   static String _getDefaultUserAgent() {
     if (_defaultUserAgent == null) {
       try {
-        _defaultUserAgent = getKrakenInfo().userAgent;
+        _defaultUserAgent = NavigatorModule.getUserAgent();
       } catch (error) {
         // Ignore if dynamic library is missing.
         return fallbackUserAgent;
@@ -91,29 +92,43 @@ class FetchModule extends BaseModule {
     Map<String, dynamic> options = params;
 
     _handleError(Object error, StackTrace? stackTrace) {
-      print('Error while fetching for $uri, message: \n$error');
+      String errmsg = '$error';
       if (stackTrace != null) {
-        print('\n$stackTrace');
+        errmsg += '\n$stackTrace';
       }
-      callback(error: '$error\n$stackTrace');
+      callback(error: errmsg);
     }
-
-    getRequest(uri, options['method'], options['headers'], options['body'])
-      .then((HttpClientRequest request) => request.close())
-      .then((HttpClientResponse response) {
-        StringBuffer contentBuffer = StringBuffer();
-
-        response
-          // @TODO: Consider binary format, now callback tunnel only accept strings.
-          .transform(utf8.decoder)
-          .listen(contentBuffer.write)
-          ..onDone(() {
-            // @TODO: response.headers not transmitted.
-            callback(data: [EMPTY_STRING, response.statusCode, contentBuffer.toString()]);
-          })
-          ..onError(_handleError);
-      })
-      .catchError(_handleError);
+    if (uri.host.isEmpty) {
+      // No host specified in URI.
+      _handleError('Failed to parse URL from $uri.', null);
+    } else {
+      HttpClientResponse? response;
+      getRequest(uri, options['method'], options['headers'], options['body'])
+        .then((HttpClientRequest request) {
+          if (_disposed) return Future.value(null);
+          return request.close();
+        })
+        .then((HttpClientResponse? res) {
+          if (res == null) {
+            return Future.value(null);
+          } else {
+            response = res;
+            return consolidateHttpClientResponseBytes(res);
+          }
+        })
+        .then((Uint8List? bytes) {
+          if (bytes == null) return Future.value(null);
+          else return resolveStringFromData(bytes);
+        })
+        .then((String? content) {
+          if (content != null) {
+            callback(data: [EMPTY_STRING, response?.statusCode, content]);
+          } else {
+            throw FlutterError('Failed to read response.');
+          }
+        })
+        .catchError(_handleError);
+    }
 
     return EMPTY_STRING;
   }

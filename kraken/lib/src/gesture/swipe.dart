@@ -1,12 +1,21 @@
 /*
- * Copyright (C) 2019-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
  */
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
-import 'package:kraken/dom.dart';
-import 'package:kraken/gesture.dart';
+
+const String DIRECTION_UP = 'up';
+const String DIRECTION_DOWN = 'down';
+const String DIRECTION_LEFT = 'left';
+const String DIRECTION_RIGHT = 'right';
+
+/// Like [kSwipeSlop], but for more precise pointers like mice and trackpads.
+const double kPrecisePointerSwipeSlop = kPrecisePointerHitSlop * 2.0; // Logical pixels
+
+/// The distance a touch has to travel for the framework to be confident that
+/// the gesture is a swipe gesture.
+const double kSwipeSlop = kTouchSlop * 2.0; // Logical pixels
 
 enum _SwipeState {
   ready,
@@ -14,7 +23,19 @@ enum _SwipeState {
   accepted,
 }
 
-typedef GestureCallback = void Function(Event);
+typedef GestureSwipeCallback = void Function(SwipeDetails details);
+
+class SwipeDetails {
+  /// Creates the details for a [GestureSwipeCallback].
+  const SwipeDetails({
+    this.direction = '',
+    this.velocity = Velocity.zero,
+  });
+
+  final String direction;
+
+  final Velocity velocity;
+}
 
 /// Determine the approriate pan slop pixels based on the [kind] of pointer.
 double computeSwipeSlop(PointerDeviceKind kind) {
@@ -39,11 +60,11 @@ class SwipeGestureRecognizer extends OneSequenceGestureRecognizer {
   /// {@macro flutter.gestures.gestureRecognizer.kind}
   SwipeGestureRecognizer({
     Object? debugOwner,
-    PointerDeviceKind? kind,
+    Set<PointerDeviceKind>? supportedDevices,
     this.dragStartBehavior = DragStartBehavior.start,
     this.velocityTrackerBuilder = _defaultBuilder,
     this.onSwipe,
-  }) : super(debugOwner: debugOwner, kind: kind);
+  }) : super(debugOwner: debugOwner, supportedDevices: supportedDevices);
 
   static VelocityTracker _defaultBuilder(PointerEvent event) => VelocityTracker.withKind(event.kind);
   /// Configure the behavior of offsets sent to [onStart].
@@ -76,7 +97,7 @@ class SwipeGestureRecognizer extends OneSequenceGestureRecognizer {
   ///  * [kPrimaryButton], the button this callback responds to.
   GestureSwipeCancelCallback? onCancel;
 
-  GestureCallback? onSwipe;
+  GestureSwipeCallback? onSwipe;
 
   /// The minimum distance an input pointer drag must have moved to
   /// to be considered a fling gesture.
@@ -145,7 +166,7 @@ class SwipeGestureRecognizer extends OneSequenceGestureRecognizer {
   /// inertia, for example.
   bool isFlingGesture(VelocityEstimate estimate, PointerDeviceKind kind) {
     final double minVelocity = minFlingVelocity ?? kMinFlingVelocity;
-    final double minDistance = minFlingDistance ?? computeHitSlop(kind);
+    final double minDistance = minFlingDistance ?? computeHitSlop(kind, gestureSettings);
 
     return ((_direction == DIRECTION_LEFT || _direction == DIRECTION_RIGHT) && (estimate.pixelsPerSecond.dx.abs() > minVelocity && estimate.offset.dx.abs() > minDistance)
     || (_direction == DIRECTION_UP || _direction == DIRECTION_DOWN) && (estimate.pixelsPerSecond.dy.abs() > minVelocity && estimate.offset.dy.abs() > minDistance));
@@ -308,8 +329,12 @@ class SwipeGestureRecognizer extends OneSequenceGestureRecognizer {
       debugReport = () {
         return '$estimate; fling at $velocity.';
       };
-      GestureEventInit e = GestureEventInit(direction: _direction ?? '', velocityX: velocity.pixelsPerSecond.dx, velocityY: velocity.pixelsPerSecond.dy );
-      invokeCallback<void>('onSwipe', () => onSwipe!(GestureEvent(EVENT_SWIPE, e)), debugReport: debugReport);
+
+      SwipeDetails details = SwipeDetails(
+        direction: _direction ?? '',
+        velocity: velocity,
+      );
+      invokeCallback<void>('onSwipe', () => onSwipe!(details), debugReport: debugReport);
     }
   }
 

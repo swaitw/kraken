@@ -1,105 +1,136 @@
 /*
- * Copyright (C) 2019-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
  */
-
-import 'dart:ffi';
 import 'dart:ui';
 
 import 'package:kraken/bridge.dart';
 import 'package:kraken/dom.dart';
-import 'package:kraken/launcher.dart';
+import 'package:kraken/foundation.dart';
+import 'package:kraken/rendering.dart';
 import 'package:kraken/module.dart';
 
 const String WINDOW = 'WINDOW';
 
 class Window extends EventTarget {
-  final Element viewportElement;
+  final Document document;
+  final Screen screen;
 
-  Window(int targetId, Pointer<NativeEventTarget> nativeEventTarget, ElementManager elementManager, this.viewportElement) : super(targetId, nativeEventTarget, elementManager) {
-    window.onPlatformBrightnessChanged = () {
-      ColorSchemeChangeEvent event = ColorSchemeChangeEvent((window.platformBrightness == Brightness.light) ? 'light' : 'dart');
-      dispatchEvent(event);
-    };
-  }
+  Window(BindingContext? context, this.document)
+      : screen = Screen(context), super(context);
 
-  void _handleColorSchemeChange(Event event) {
-    emitUIEvent(elementManager.controller.view.contextId, nativeEventTargetPtr, event);
-  }
+  @override
+  EventTarget? get parentEventTarget => null;
 
-  void _handleLoad(Event event) {
-    emitUIEvent(elementManager.controller.view.contextId, nativeEventTargetPtr, event);
-  }
-
-  void _handleScroll(Event event) {
-    emitUIEvent(elementManager.controller.view.contextId, nativeEventTargetPtr, event);
-  }
-
-  static void _open(ElementManager elementManager, String url) {
-    KrakenController rootController = elementManager.controller.view.rootController;
-    String? sourceUrl = rootController.bundleURL ?? rootController.bundlePath;
-
-    elementManager.controller.view.handleNavigationAction(sourceUrl, url, KrakenNavigationType.navigate);
-  }
-
-  double scrollX() {
-    return viewportElement.scrollLeft;
-  }
-
-  double scrollY() {
-    return viewportElement.scrollTop;
-  }
-
-  void scrollTo(num x, num y) {
-    viewportElement.flushLayout();
-    viewportElement.scrollTo(x: x, y: y, withAnimation: false);
-  }
-
-  void scrollBy(num x, num y) {
-    viewportElement.flushLayout();
-    viewportElement.scrollBy(dx: x, dy: y, withAnimation: false);
+  // https://www.w3.org/TR/cssom-view-1/#extensions-to-the-window-interface
+  @override
+  getBindingProperty(String key) {
+    switch (key) {
+      case 'innerWidth': return innerWidth;
+      case 'innerHeight': return innerHeight;
+      case 'scrollX': return scrollX;
+      case 'scrollY': return scrollY;
+      case 'screen': return screen;
+      case 'colorScheme': return colorScheme;
+      case 'devicePixelRatio': return devicePixelRatio;
+      default: return super.getBindingProperty(key);
+    }
   }
 
   @override
-  void addEvent(String eventName) {
-    super.addEvent(eventName);
+  invokeBindingMethod(String method, List args) {
+    switch (method) {
+      case 'scroll':
+      case 'scrollTo':
+        return scrollTo(
+            castToType<double>(args[0]),
+            castToType<double>(args[1])
+        );
+      case 'scrollBy':
+        return scrollBy(
+            castToType<double>(args[0]),
+            castToType<double>(args[1])
+        );
+      case 'open':
+        return open(castToType<String>(args[0]));
+      default: return super.invokeBindingMethod(method, args);
+    }
+  }
 
-    if (eventHandlers.containsKey(eventName)) return; // Only listen once.
+  void open(String url) {
+    String? sourceUrl = document.controller.view.rootController.url;
+    document.controller.view.handleNavigationAction(sourceUrl, url, KrakenNavigationType.navigate);
+  }
 
-    switch (eventName) {
-      case EVENT_COLOR_SCHEME_CHANGE:
-        return addEventListener(eventName, _handleColorSchemeChange);
-      case EVENT_LOAD:
-        return addEventListener(eventName, _handleLoad);
+  double get scrollX => document.documentElement!.scrollLeft;
+
+  double get scrollY => document.documentElement!.scrollTop;
+
+  void scrollTo(double x, double y) {
+    document.documentElement!
+      ..flushLayout()
+      ..scrollTo(x, y);
+  }
+
+  void scrollBy(double x, double y) {
+    document.documentElement!
+      ..flushLayout()
+      ..scrollBy(x, y);
+  }
+
+  String get colorScheme => window.platformBrightness == Brightness.light ? 'light' : 'dark';
+
+  double get devicePixelRatio => window.devicePixelRatio;
+
+  // The innerWidth/innerHeight attribute must return the viewport width/height
+  // including the size of a rendered scroll bar (if any), or zero if there is no viewport.
+  // https://drafts.csswg.org/cssom-view/#dom-window-innerwidth
+  // This is a read only idl attribute.
+  int get innerWidth => _viewportSize.width.toInt();
+  int get innerHeight => _viewportSize.height.toInt();
+
+  Size get _viewportSize {
+    RenderViewportBox? viewport = document.viewport;
+    if (viewport != null && viewport.hasSize) {
+      return viewport.size;
+    } else {
+      return Size.zero;
+    }
+  }
+
+
+  @override
+  void dispatchEvent(Event event) {
+    // Events such as EVENT_DOM_CONTENT_LOADED need to ensure that listeners are flushed and registered.
+    if (event.type == EVENT_DOM_CONTENT_LOADED || event.type == EVENT_LOAD || event.type == EVENT_ERROR) {
+      flushUICommand();
+    }
+    super.dispatchEvent(event);
+  }
+
+  @override
+  void addEventListener(String eventType, EventHandler handler) {
+    super.addEventListener(eventType, handler);
+    switch (eventType) {
       case EVENT_SCROLL:
-        return viewportElement.addEventListener(eventName, _handleScroll);
-      default:
-        // Events listened on the Window need to be proxied to the Document, because there is a RenderView on the Document, which can handle hitTest.
-        // https://github.com/WebKit/WebKit/blob/main/Source/WebCore/page/VisualViewport.cpp#L61
-        viewportElement.addEvent(eventName);
+        // Fired at the Document or element when the viewport or element is scrolled, respectively.
+        document.documentElement?.addEventListener(eventType, handler);
         break;
     }
   }
 
   @override
-  void dispose() {
-    super.dispose();
+  void removeEventListener(String eventType, EventHandler handler) {
+    super.removeEventListener(eventType, handler);
+    switch (eventType) {
+      case EVENT_SCROLL:
+        document.documentElement?.removeEventListener(eventType, handler);
+        break;
+    }
   }
 
-  @override
-  dynamic handleJSCall(String method, List<dynamic> argv) {
-    switch(method) {
-      case 'scroll':
-      case 'scrollTo':
-        return scrollTo(argv[0], argv[1]);
-      case 'scrollBy':
-        return scrollBy(argv[0], argv[1]);
-      case 'scrollX':
-        return scrollX();
-      case 'scrollY':
-        return scrollY();
-      case 'open':
-        return _open(elementManager, argv[0]);
-    }
+  /// Moves the focus to the window's browsing context, if any.
+  /// https://html.spec.whatwg.org/multipage/interaction.html#dom-window-focus
+  void focus() {
+    // TODO
   }
 }

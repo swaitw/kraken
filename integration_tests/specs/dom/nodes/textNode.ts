@@ -55,6 +55,28 @@ describe('TextNode', () => {
     await snapshot();
   });
 
+  it('the previous sibling is block, the left space of this textnode is hidden', async () => {
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode('text1'));
+    document.body.appendChild(div);
+
+    const text = document.createTextNode(' text2');
+    document.body.appendChild(text);
+
+    await snapshot();
+  });
+
+  it('the next sibling is block, the right space of this textnode is hidden', async () => {
+    const text = document.createTextNode('text1 ');
+    document.body.appendChild(text);
+
+    const div = document.createElement('div');
+    div.appendChild(document.createTextNode('text2'));
+    document.body.appendChild(div);
+
+    await snapshot();
+  });
+
   it('should work with set textContent', async () => {
     const div = document.createElement('div');
     const text = document.createTextNode('before modified');
@@ -63,6 +85,36 @@ describe('TextNode', () => {
     div.appendChild(text);
 
     text.textContent = 'after modified';
+
+    await snapshot();
+  });
+
+  it('empty string of textNode set data should work', async () => {
+    const text = document.createTextNode('');
+    document.body.appendChild(text);
+    text.data = 'aaa';
+
+    await snapshot();
+  });
+
+  it('empty string of textNode should not attach the render object to parent.', async () => {
+    const container = document.createElement('div');
+    container.style.display = 'flex';
+    container.style.justifyContent = 'space-between';
+    container.style.alignItems = 'center';
+
+    document.body.appendChild(container);
+
+    container.appendChild(document.createTextNode(''));
+
+    for (let i = 0; i < 3; i++) {
+      const child = document.createElement('div');
+      child.style.border = '1px solid red';
+      child.textContent = `${i}`;
+      container.appendChild(child);
+    }
+
+    container.appendChild(document.createTextNode(''));
 
     await snapshot();
   });
@@ -119,5 +171,95 @@ describe('TextNode', () => {
       await snapshot();
       expect(text.nodeValue).toEqual(TEXT);
     });
+  });
+
+  it('should work with whitespace trim and collapse of space', async () => {
+    let div;
+ 
+    div = createElement(
+      'div',
+      {
+        style: {
+          font: '60px monospace',
+        },
+      },
+      [createText(`\u0020  \u0020A\u0020  \u0020B`)]
+    );
+    
+    BODY.appendChild(div);
+
+    await snapshot();
+  });
+
+  it('should work with whitespace trim and collapse of tab', async () => {
+    let div;
+ 
+    div = createElement(
+      'div',
+      {
+        style: {
+          font: '60px monospace',
+        },
+      },
+      [createText(`\u0009\u0009\u0009A\u0009\u0009\u0009B`)]
+    );
+    
+    BODY.appendChild(div);
+
+    await snapshot();
+  });
+
+  it('should work with whitespace trim and collapse of segment break', async () => {
+    let div;
+ 
+    div = createElement(
+      'div',
+      {
+        style: {
+          font: '60px monospace',
+        },
+      },
+      [createText(`\u000a\u000a\u000aA\u000a\u000a\u000aB`)]
+    );
+    
+    BODY.appendChild(div);
+
+    await snapshot();
+  });
+
+  it('should work with whitespace trim and collapse of carriage return', async () => {
+    let div;
+ 
+    div = createElement(
+      'div',
+      {
+        style: {
+          font: '60px monospace',
+        },
+      },
+      [createText(`\u000d\u000d\u000dA\u000d\u000d\u000dB`)]
+    );
+    
+    BODY.appendChild(div);
+
+    await snapshot();
+  });
+
+  it('should not work with whitespace trim and collapse of no-break space', async () => {
+    let div;
+ 
+    div = createElement(
+      'div',
+      {
+        style: {
+          font: '60px monospace',
+        },
+      },
+      [createText(`\u00a0\u00a0\u00a0A\u00a0\u00a0\u00a0B`)]
+    );
+    
+    BODY.appendChild(div);
+
+    await snapshot();
   });
 });

@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2021-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
  */
 
 
@@ -62,7 +61,7 @@ class AsyncStorageModule extends BaseModule {
   }
 
   @override
-  String invoke(String method, dynamic params, InvokeModuleCallback callback) {
+  String invoke(String method, params, InvokeModuleCallback callback) {
     switch (method) {
       case 'getItem':
         AsyncStorageModule.getItem(params).then((String? value) {

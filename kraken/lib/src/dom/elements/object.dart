@@ -1,14 +1,10 @@
 /*
- * Copyright (C) 2019-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
  */
-
-import 'dart:ffi';
-
 import 'package:flutter/rendering.dart';
-import 'package:kraken/bridge.dart';
 import 'package:kraken/css.dart';
 import 'package:kraken/dom.dart';
+import 'package:kraken/foundation.dart';
 
 const String OBJECT = 'OBJECT';
 const String PARAM = 'PARAM';
@@ -25,8 +21,8 @@ const Map<String, dynamic> _paramStyle = {
 
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/param
 class ParamElement extends Element {
-  ParamElement(int targetId, Pointer<NativeEventTarget> nativePtr, ElementManager elementManager)
-      : super(targetId, nativePtr, elementManager, defaultStyle: _paramStyle);
+  ParamElement([BindingContext? context])
+      : super(context, defaultStyle: _paramStyle);
 }
 
 _DefaultObjectElementClient _DefaultObjectElementClientFactory(ObjectElementHost objectElementHost) {
@@ -39,11 +35,10 @@ class ObjectElement extends Element implements ObjectElementHost {
   late ObjectElementClientFactory _objectElementClientFactory;
   late ObjectElementClient _objectElementClient;
 
-  ObjectElement(int targetId, Pointer<NativeEventTarget> nativePtr, ElementManager elementManager)
-      : super(targetId, nativePtr, elementManager, defaultStyle: _objectStyle, isIntrinsicBox: true) {
+  ObjectElement([BindingContext? context])
+      : super(context, defaultStyle: _objectStyle, isReplacedElement: true) {
     initObjectClient();
     initElementClient();
-    initDetachCallback(elementManager);
   }
 
   void initObjectClient() {
@@ -53,38 +48,39 @@ class ObjectElement extends Element implements ObjectElementHost {
 
   Future initElementClient() async {
     try {
-      await _objectElementClient.initElementClient(properties);
+      await _objectElementClient.initElementClient(attributes);
     } catch (error, stackTrace) {
       print('$error\n$stackTrace');
     }
   }
 
-  void initDetachCallback(final ElementManager elementManager) {
-    elementManager.setDetachCallback(disposeClient);
+  @override
+  invokeBindingMethod(String method, List args) {
+    return handleJSCall(method, args) ?? super.invokeBindingMethod(method, args);
   }
 
   @override
-  void setProperty(String key, value) {
-    super.setProperty(key, value);
-    switch (key) {
-      case 'type':
-        _objectElementClient.setProperty(key, value);
-        break;
-      case 'data':
-        _objectElementClient.setProperty(key, value);
-        break;
-      default:
-        break;
+  void setAttribute(String qualifiedName, String value) {
+    super.setAttribute(qualifiedName, value);
+    switch (qualifiedName) {
+      case 'type': type = attributeToProperty<String>(value); break;
+      case 'data': data = attributeToProperty(value); break;
     }
   }
 
-  @override
+  String get type => _objectElementClient.getProperty('type');
+  set type(String value) {
+    internalSetAttribute('type', value);
+    _objectElementClient.setProperty('type', value);
+  }
+
+  get data => _objectElementClient.getProperty('data');
+  set data(value) {
+    _objectElementClient.setProperty('data', value);
+  }
+
   handleJSCall(String method, List argv) {
-    var result = _objectElementClient.handleJSCall(method, argv);
-    if (result == null) {
-      return super.handleJSCall(method, argv);
-    }
-    return result;
+    return _objectElementClient.handleJSCall(method, argv);
   }
 
   @override
@@ -110,12 +106,6 @@ class ObjectElement extends Element implements ObjectElementHost {
     super.didDetachRenderer();
     _objectElementClient.didDetachRenderer();
   }
-
-  // @override
-  // void setStyle(String key, value) {
-  //   super.setStyle(key, value);
-  //   _objectElementClient?.setStyle(key, value);
-  // }
 
   @override
   void updateChildTextureBox(TextureBox? textureBox) {
@@ -166,7 +156,7 @@ class _DefaultObjectElementClient implements ObjectElementClient {
   /// called when Element following properties change
   /// width,height
   /// [dataType] indicate the content type of the resource specified by data.
-  /// [data] indicate the address of the resource as a valid URL.
+  /// [rawBytes] indicate the address of the resource as a valid URL.
   ///
   /// NOTE:
   /// At least one of data and type must be defined.

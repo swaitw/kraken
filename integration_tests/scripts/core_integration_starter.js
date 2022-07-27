@@ -1,3 +1,6 @@
+/*
+ * Copyright (C) 2022-present The Kraken authors. All rights reserved.
+ */
 const { spawn, spawnSync } = require('child_process');
 const path = require('path');
 
@@ -16,6 +19,8 @@ function startIntegrationTest() {
     env: {
       ...process.env,
       KRAKEN_ENABLE_TEST: 'true',
+      'enable-software-rendering': true,
+      'skia-deterministic-rendering': true,
       KRAKEN_TEST_DIR: path.join(__dirname, '../')
     },
     cwd: process.cwd(),

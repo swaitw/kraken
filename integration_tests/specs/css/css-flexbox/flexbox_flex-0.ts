@@ -73,7 +73,7 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  xit('0-0-unitless', async () => {
+  it('0-0-unitless', async () => {
     let div;
     div = createElement(
       'div',
@@ -462,7 +462,7 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  xit('0-N-shrink', async () => {
+  it('0-N-shrink', async () => {
     let div;
     div = createElement(
       'div',
@@ -618,7 +618,7 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  xit('0-N', async () => {
+  it('0-N', async () => {
     let div;
     div = createElement(
       'div',
@@ -773,7 +773,7 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  xit('0-Npercent-shrink-ref', async () => {
+  it('0-Npercent-shrink-ref', async () => {
     let div;
     div = createElement(
       'div',
@@ -928,7 +928,7 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  xit('0-auto-shrink-ref', async () => {
+  it('0-auto-shrink-ref', async () => {
     let div;
     div = createElement(
       'div',
@@ -1162,7 +1162,7 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  xit('0', async () => {
+  it('0', async () => {
     let div;
     div = createElement(
       'div',
@@ -1313,7 +1313,7 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  xit('1-0-unitless', async () => {
+  it('1-0-unitless', async () => {
     let div;
     div = createElement(
       'div',
@@ -1391,7 +1391,8 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  xit('1-0', async () => {
+
+  it('1-0', async () => {
     let div;
     div = createElement(
       'div',
@@ -1701,6 +1702,9 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
+
+  // @TODO: Impl setting longest words width as the minimum size of text.
+  // https://github.com/openkraken/kraken/issues/401
   xit('1-N-shrink', async () => {
     let div;
     div = createElement(
@@ -1857,7 +1861,7 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  xit('1-N', async () => {
+  it('1-N', async () => {
     let div;
     div = createElement(
       'div',
@@ -2012,6 +2016,9 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
+
+  // @TODO: Impl setting longest words width as the minimum size of text.
+  // https://github.com/openkraken/kraken/issues/401
   xit('1-Npercent-shrink-ref', async () => {
     let div;
     div = createElement(
@@ -2089,6 +2096,9 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
+
+  // @TODO: Impl setting longest words width as the minimum size of text.
+  // https://github.com/openkraken/kraken/issues/401
   xit('1-Npercent-shrink', async () => {
     let div;
     div = createElement(
@@ -2167,7 +2177,8 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  xit('1-Npercent', async () => {
+
+  it('1-Npercent', async () => {
     let div;
     div = createElement(
       'div',
@@ -2399,7 +2410,10 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  it('1-auto-shrink', async () => {
+
+  // @TODO: Impl setting longest words width as the minimum size of text.
+  // https://github.com/openkraken/kraken/issues/401
+  xit('1-auto-shrink', async () => {
     let div;
     div = createElement(
       'div',
@@ -2555,7 +2569,7 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  xit('1', async () => {
+  it('1', async () => {
     let div;
     div = createElement(
       'div',
@@ -2706,7 +2720,7 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  xit('N-0-unitless', async () => {
+  it('N-0-unitless', async () => {
     let div;
     div = createElement(
       'div',
@@ -2784,7 +2798,8 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  xit('N-0', async () => {
+
+  it('N-0', async () => {
     let div;
     div = createElement(
       'div',
@@ -3016,6 +3031,9 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
+
+  // @TODO: Impl setting longest words width as the minimum size of text.
+  // https://github.com/openkraken/kraken/issues/401
   xit('N-N-shrink', async () => {
     let div;
     div = createElement(
@@ -3094,7 +3112,7 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  xit('N-N', async () => {
+  it('N-N', async () => {
     let div;
     div = createElement(
       'div',
@@ -3326,6 +3344,9 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
+
+  // @TODO: Impl setting longest words width as the minimum size of text.
+  // https://github.com/openkraken/kraken/issues/401
   xit('N-Npercent-shrink', async () => {
     let div;
     div = createElement(
@@ -3404,7 +3425,8 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  xit('N-Npercent', async () => {
+
+  it('N-Npercent', async () => {
     let div;
     div = createElement(
       'div',
@@ -3635,7 +3657,9 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  it('N-auto-shrink', async () => {
+  // @TODO: Impl setting longest words width as the minimum size of text.
+  // https://github.com/openkraken/kraken/issues/401
+  xit('N-auto-shrink', async () => {
     let div;
     div = createElement(
       'div',
@@ -3791,7 +3815,7 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  xit('N', async () => {
+  it('N', async () => {
     let div;
     div = createElement(
       'div',
@@ -3869,7 +3893,10 @@ describe('flexbox_flex-0', () => {
 
     await snapshot();
   });
-  it('auto', async () => {
+
+  // @TODO: Impl setting longest words width as the minimum size of text.
+  // https://github.com/openkraken/kraken/issues/401
+  xit('auto', async () => {
     let div;
     let flex;
     div = createElement(

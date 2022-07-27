@@ -1,13 +1,9 @@
 /*
- * Copyright (C) 2019-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
  */
-
-import 'dart:ffi';
-
-import 'package:kraken/bridge.dart';
 import 'package:kraken/css.dart';
 import 'package:kraken/dom.dart';
+import 'package:kraken/foundation.dart';
 
 // https://developer.mozilla.org/en-US/docs/Web/HTML/Element#content_sectioning
 
@@ -30,41 +26,41 @@ const Map<String, dynamic> _addressDefaultStyle = {
 };
 
 class AddressElement extends Element {
-  AddressElement(int targetId, Pointer<NativeEventTarget> nativePtr, ElementManager elementManager)
-      : super(targetId, nativePtr, elementManager, defaultStyle: _addressDefaultStyle);
+  AddressElement([BindingContext? context])
+      : super(context, defaultStyle: _addressDefaultStyle);
 }
 
 class ArticleElement extends Element {
-  ArticleElement(int targetId, Pointer<NativeEventTarget> nativePtr, ElementManager elementManager)
-      : super(targetId, nativePtr, elementManager, defaultStyle: _defaultStyle);
+  ArticleElement([BindingContext? context])
+      : super(context, defaultStyle: _defaultStyle);
 }
 
 class AsideElement extends Element {
-  AsideElement(int targetId, Pointer<NativeEventTarget> nativePtr, ElementManager elementManager)
-      : super(targetId, nativePtr, elementManager, defaultStyle: _defaultStyle);
+  AsideElement([BindingContext? context])
+      : super(context, defaultStyle: _defaultStyle);
 }
 
 class FooterElement extends Element {
-  FooterElement(int targetId, Pointer<NativeEventTarget> nativePtr, ElementManager elementManager)
-      : super(targetId, nativePtr, elementManager, defaultStyle: _defaultStyle);
+  FooterElement([BindingContext? context])
+      : super(context, defaultStyle: _defaultStyle);
 }
 
 class HeaderElement extends Element {
-  HeaderElement(int targetId, Pointer<NativeEventTarget> nativePtr, ElementManager elementManager)
-      : super(targetId, nativePtr, elementManager, defaultStyle: _defaultStyle);
+  HeaderElement([BindingContext? context])
+      : super(context, defaultStyle: _defaultStyle);
 }
 
 class MainElement extends Element {
-  MainElement(int targetId, Pointer<NativeEventTarget> nativePtr, ElementManager elementManager)
-      : super(targetId, nativePtr, elementManager, defaultStyle: _defaultStyle);
+  MainElement([BindingContext? context])
+      : super(context, defaultStyle: _defaultStyle);
 }
 
 class NavElement extends Element {
-  NavElement(int targetId, Pointer<NativeEventTarget> nativePtr, ElementManager elementManager)
-      : super(targetId, nativePtr, elementManager, defaultStyle: _defaultStyle);
+  NavElement([BindingContext? context])
+      : super(context, defaultStyle: _defaultStyle);
 }
 
 class SectionElement extends Element {
-  SectionElement(int targetId, Pointer<NativeEventTarget> nativePtr, ElementManager elementManager)
-      : super(targetId, nativePtr, elementManager, defaultStyle: _defaultStyle);
+  SectionElement([BindingContext? context])
+      : super(context, defaultStyle: _defaultStyle);
 }

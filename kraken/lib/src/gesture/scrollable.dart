@@ -1,12 +1,10 @@
 /*
- * Copyright (C) 2019-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
  */
 
-import 'dart:math' as math;
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
+import 'dart:math' as math;
+import 'package:flutter/physics.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -15,7 +13,6 @@ import 'monodrag.dart';
 import 'scroll_activity.dart';
 import 'scroll_context.dart';
 import 'scroll_physics.dart';
-import 'scroll_position.dart';
 import 'scroll_position_with_single_context.dart';
 
 typedef ScrollListener = void Function(double scrollOffset, AxisDirection axisDirection);
@@ -38,6 +35,12 @@ mixin _CustomTickerProviderStateMixin implements TickerProvider {
   }
 }
 
+const Set<PointerDeviceKind> _kTouchLikeDeviceTypes = <PointerDeviceKind>{
+  PointerDeviceKind.touch,
+  PointerDeviceKind.stylus,
+  PointerDeviceKind.invertedStylus,
+};
+
 // This class should really be called _DisposingTicker or some such, but this
 // class name leaks into stack traces and error messages and that name would be
 // confusing. Instead we use the less precise but more anodyne "_WidgetTicker",
@@ -56,15 +59,17 @@ class _CustomTicker extends Ticker {
 
 class KrakenScrollable with _CustomTickerProviderStateMixin implements ScrollContext {
   late AxisDirection _axisDirection;
-  ScrollPosition? position;
+  ScrollPositionWithSingleContext? position;
   final ScrollPhysics _physics = ScrollPhysics.createScrollPhysics();
   DragStartBehavior dragStartBehavior;
   ScrollListener? scrollListener;
+  final Set<PointerDeviceKind> dragDevices;
 
   KrakenScrollable({
     AxisDirection axisDirection = AxisDirection.down,
     this.dragStartBehavior = DragStartBehavior.start,
     this.scrollListener,
+    this.dragDevices = _kTouchLikeDeviceTypes
   }) {
     _axisDirection = axisDirection;
     position = ScrollPositionWithSingleContext(physics: _physics, context: this, oldPosition: null);
@@ -79,6 +84,10 @@ class KrakenScrollable with _CustomTickerProviderStateMixin implements ScrollCon
     for (GestureRecognizer? recognizer in _recognizers.values) {
       recognizer!.addPointer(event);
     }
+  }
+
+  void handlePinterSignal(PointerSignalEvent event) {
+    _receivedPointerSignal(event);
   }
 
   @override
@@ -98,10 +107,10 @@ class KrakenScrollable with _CustomTickerProviderStateMixin implements ScrollCon
     } else {
       switch (axis) {
         case Axis.vertical:
-        // Vertical trag gesture recongnizer to trigger vertical scroll.
+          // Vertical drag gesture recognizer to trigger vertical scroll.
           _gestureRecognizers = <Type, GestureRecognizerFactory>{
             ScrollVerticalDragGestureRecognizer: GestureRecognizerFactoryWithHandlers<ScrollVerticalDragGestureRecognizer>(
-              () => ScrollVerticalDragGestureRecognizer(),
+              () => ScrollVerticalDragGestureRecognizer(supportedDevices: dragDevices),
               (ScrollVerticalDragGestureRecognizer instance) {
                 instance
                   ..isAcceptedDrag = _isAcceptedVerticalDrag
@@ -119,10 +128,10 @@ class KrakenScrollable with _CustomTickerProviderStateMixin implements ScrollCon
           };
           break;
         case Axis.horizontal:
-          // Horizontal trag gesture recongnizer to horizontal vertical scroll.
+          // Horizontal drag gesture recognizer to horizontal vertical scroll.
           _gestureRecognizers = <Type, GestureRecognizerFactory>{
             ScrollHorizontalDragGestureRecognizer: GestureRecognizerFactoryWithHandlers<ScrollHorizontalDragGestureRecognizer>(
-              () => ScrollHorizontalDragGestureRecognizer(),
+              () => ScrollHorizontalDragGestureRecognizer(supportedDevices: dragDevices),
               (ScrollHorizontalDragGestureRecognizer instance) {
                 instance
                   ..isAcceptedDrag = _isAcceptedHorizontalDrag
@@ -146,20 +155,25 @@ class KrakenScrollable with _CustomTickerProviderStateMixin implements ScrollCon
     _syncAll(_gestureRecognizers);
   }
 
-  // Used in the Arena to judge whether the vertical trag gesture can trigger the current container to scroll.
-  bool _isAcceptedVerticalDrag (AxisDirection direction) {
-    double? pixels = (_drag as ScrollDragController).pixels;
-    double? maxScrollExtent = (_drag as ScrollDragController).maxScrollExtent;
-    double? minScrollExtent = (_drag as ScrollDragController).minScrollExtent;
-    return !((direction == AxisDirection.down && pixels! <= minScrollExtent!) || direction == AxisDirection.up && pixels! >= maxScrollExtent!);
+  // Used in the Arena to judge whether the vertical drag gesture can trigger the current container to scroll.
+  bool _isAcceptedVerticalDrag(AxisDirection direction) {
+    ScrollDragController drag = _drag!;
+    double pixels = drag.pixels!;
+    double maxScrollExtent = drag.maxScrollExtent!;
+    double minScrollExtent = drag.minScrollExtent!;
+
+    return !((direction == AxisDirection.down && (pixels <= minScrollExtent || nearEqual(pixels, minScrollExtent, Tolerance.defaultTolerance.distance)))
+        || direction == AxisDirection.up && (pixels >= maxScrollExtent || nearEqual(pixels, maxScrollExtent, Tolerance.defaultTolerance.distance)));
   }
 
-  // Used in the Arena to judge whether the horizontal trag gesture can trigger the current container to scroll.
-  bool _isAcceptedHorizontalDrag (AxisDirection direction) {
-    double? pixels = (_drag as ScrollDragController).pixels;
-    double? maxScrollExtent = (_drag as ScrollDragController).maxScrollExtent;
-    double? minScrollExtent = (_drag as ScrollDragController).minScrollExtent;
-    return !((direction == AxisDirection.right && pixels! <= minScrollExtent!) || direction == AxisDirection.left && pixels! >= maxScrollExtent!);
+  // Used in the Arena to judge whether the horizontal drag gesture can trigger the current container to scroll.
+  bool _isAcceptedHorizontalDrag(AxisDirection direction) {
+    ScrollDragController drag = _drag!;
+    double pixels = drag.pixels!;
+    double maxScrollExtent = drag.maxScrollExtent!;
+    double minScrollExtent = drag.minScrollExtent!;
+    return !((direction == AxisDirection.right && (pixels <= minScrollExtent || nearEqual(pixels, minScrollExtent, Tolerance.defaultTolerance.distance)))
+        || direction == AxisDirection.left && (pixels >= maxScrollExtent || nearEqual(pixels, maxScrollExtent, Tolerance.defaultTolerance.distance)));
   }
 
   void _syncAll(Map<Type, GestureRecognizerFactory> gestures) {
@@ -179,8 +193,7 @@ class KrakenScrollable with _CustomTickerProviderStateMixin implements ScrollCon
   }
 
   // TOUCH HANDLERS
-
-  Drag? _drag;
+  ScrollDragController? _drag;
   ScrollHoldController? _hold;
 
   void _handleDragDown(DragDownDetails details) {
@@ -203,6 +216,46 @@ class KrakenScrollable with _CustomTickerProviderStateMixin implements ScrollCon
     // _drag might be null if the drag activity ended and called _disposeDrag.
     assert(_hold == null || _drag == null);
     _drag?.update(details);
+  }
+
+  void _receivedPointerSignal(PointerSignalEvent event) {
+    if (event is PointerScrollEvent && position != null) {
+      if (!_physics.shouldAcceptUserOffset(position!)) {
+        return;
+      }
+      final double delta = _pointerSignalEventDelta(event);
+      final double targetScrollOffset = _targetScrollOffsetForPointerScroll(delta);
+      // Only express interest in the event if it would actually result in a scroll.
+      if (delta != 0.0 && targetScrollOffset != position?.pixels) {
+        GestureBinding.instance!.pointerSignalResolver.register(event, _handlePointerScroll);
+      }
+    }
+  }
+  double _pointerSignalEventDelta(PointerScrollEvent event) {
+    double delta = axis == Axis.horizontal
+      ? event.scrollDelta.dx
+      : event.scrollDelta.dy;
+
+    if (axisDirectionIsReversed(axisDirection)) {
+      delta *= -1;
+    }
+    return delta;
+  }
+
+  double _targetScrollOffsetForPointerScroll(double delta) {
+    return math.min(
+      math.max(position!.pixels + delta, position!.minScrollExtent),
+      position!.maxScrollExtent,
+    );
+  }
+
+  void _handlePointerScroll(PointerSignalEvent event) {
+    assert(event is PointerScrollEvent);
+    final double delta = _pointerSignalEventDelta(event as PointerScrollEvent);
+    final double targetScrollOffset = _targetScrollOffsetForPointerScroll(delta);
+    if (delta != 0.0 && targetScrollOffset != position!.pixels) {
+      position!.pointerScroll(delta);
+    }
   }
 
   void _handleDragEnd(DragEndDetails details) {
@@ -235,202 +288,4 @@ class KrakenScrollable with _CustomTickerProviderStateMixin implements ScrollCon
 
   @override
   TickerProvider get vsync => this;
-}
-
-mixin RenderOverflowMixin on RenderBox {
-  ScrollListener? scrollListener;
-  void Function(PointerEvent)? pointerListener;
-
-  bool _clipX = false;
-  bool get clipX => _clipX;
-  set clipX(bool value) {
-    if (_clipX == value) return;
-    _clipX = value;
-    markNeedsLayout();
-  }
-
-  bool _clipY = false;
-  bool get clipY => _clipY;
-  set clipY(bool value) {
-    if (_clipY == value) return;
-    _clipY = value;
-    markNeedsLayout();
-  }
-
-  bool _enableScrollX = false;
-  bool get enableScrollX => _enableScrollX;
-  set enableScrollX(bool value) {
-    if (_enableScrollX == value) return;
-    _enableScrollX = value;
-  }
-
-  bool _enableScrollY = false;
-  bool get enableScrollY => _enableScrollY;
-  set enableScrollY(bool value) {
-    if (_enableScrollY == value) return;
-    _enableScrollY = value;
-  }
-
-  Size? _scrollableSize;
-  Size? _viewportSize;
-
-  ViewportOffset? get scrollOffsetX => _scrollOffsetX;
-  ViewportOffset? _scrollOffsetX;
-  set scrollOffsetX(ViewportOffset? value) {
-    if (value == _scrollOffsetX) return;
-    _scrollOffsetX?.removeListener(_scrollXListener);
-    _scrollOffsetX = value;
-    _scrollOffsetX?.addListener(_scrollXListener);
-    markNeedsLayout();
-  }
-
-  ViewportOffset? get scrollOffsetY => _scrollOffsetY;
-  ViewportOffset? _scrollOffsetY;
-  set scrollOffsetY(ViewportOffset? value) {
-    if (value == _scrollOffsetY) return;
-    _scrollOffsetY?.removeListener(_scrollYListener);
-    _scrollOffsetY = value;
-    _scrollOffsetY?.addListener(_scrollYListener);
-    markNeedsLayout();
-  }
-
-  void _scrollXListener() {
-    assert(scrollListener != null);
-    scrollListener!(scrollOffsetX!.pixels, AxisDirection.right);
-    markNeedsPaint();
-  }
-
-  void _scrollYListener() {
-    assert(scrollListener != null);
-    scrollListener!(scrollOffsetY!.pixels, AxisDirection.down);
-    markNeedsPaint();
-  }
-
-  BoxConstraints deflateOverflowConstraints(BoxConstraints constraints) {
-    BoxConstraints result = constraints;
-    if (_clipX && _clipY) {
-      result = BoxConstraints();
-    } else if (_clipX) {
-      result = BoxConstraints(minWidth: constraints.minWidth, maxWidth: constraints.maxWidth);
-    } else if (_clipY) {
-      result = BoxConstraints(minHeight: constraints.minHeight, maxHeight: constraints.maxHeight);
-    }
-    return result;
-  }
-
-  void _setUpScrollX() {
-    _scrollOffsetX!.applyViewportDimension(_viewportSize!.width);
-    _scrollOffsetX!.applyContentDimensions(0.0, math.max(0.0, _scrollableSize!.width - _viewportSize!.width));
-  }
-
-  void _setUpScrollY() {
-    _scrollOffsetY!.applyViewportDimension(_viewportSize!.height);
-    _scrollOffsetY!.applyContentDimensions(0.0, math.max(0.0, _scrollableSize!.height - _viewportSize!.height));
-  }
-
-  void setUpOverflowScroller(Size scrollableSize, Size viewportSize) {
-    _scrollableSize = scrollableSize;
-    _viewportSize = viewportSize;
-    if (_clipX && _scrollOffsetX != null) {
-      _setUpScrollX();
-    }
-
-    if (_clipY && _scrollOffsetY != null) {
-      _setUpScrollY();
-    }
-  }
-
-  double get _paintOffsetX {
-    if (_scrollOffsetX == null) return 0.0;
-    return -_scrollOffsetX!.pixels;
-  }
-  double get _paintOffsetY {
-    if (_scrollOffsetY == null) return 0.0;
-    return -_scrollOffsetY!.pixels;
-  }
-
-  double get scrollTop {
-    if (_scrollOffsetY == null) return 0.0;
-    return _scrollOffsetY!.pixels;
-  }
-
-  double get scrollLeft {
-    if (_scrollOffsetX == null) return 0.0;
-    return _scrollOffsetX!.pixels;
-  }
-
-  bool _shouldClipAtPaintOffset(Offset paintOffset, Size childSize) {
-    return paintOffset < Offset.zero || !(Offset.zero & size).contains((paintOffset & childSize).bottomRight);
-  }
-
-  ClipRRectLayer? _oldClipRRectLayer;
-  ClipRectLayer? _oldClipRectLayer;
-
-  void paintOverflow(PaintingContext context, Offset offset, EdgeInsets borderEdge, BoxDecoration? decoration, PaintingContextCallback callback) {
-    if (clipX == false && clipY == false) return callback(context, offset);
-    final double paintOffsetX = _paintOffsetX;
-    final double paintOffsetY = _paintOffsetY;
-    final Offset paintOffset = Offset(paintOffsetX, paintOffsetY);
-    // Overflow should not cover border
-    Rect clipRect = Offset(borderEdge.left, borderEdge.top) & Size(
-      size.width - borderEdge.right - borderEdge.left,
-      size.height - borderEdge.bottom - borderEdge.top,
-    );
-    if (_shouldClipAtPaintOffset(paintOffset, size)) {
-      // ignore: prefer_function_declarations_over_variables
-      PaintingContextCallback painter = (PaintingContext context, Offset offset) {
-        callback(context, offset + paintOffset);
-      };
-      if (decoration != null && decoration.borderRadius != null) {
-        BorderRadius radius = decoration.borderRadius as BorderRadius;
-        RRect clipRRect = RRect.fromRectAndCorners(clipRect,
-            topLeft: radius.topLeft,
-            topRight: radius.topRight,
-            bottomLeft: radius.bottomLeft,
-            bottomRight: radius.bottomRight
-        );
-        _oldClipRRectLayer = context.pushClipRRect(needsCompositing, offset, clipRect, clipRRect, painter, oldLayer: _oldClipRRectLayer);
-      } else {
-        _oldClipRectLayer = context.pushClipRect(needsCompositing, offset, clipRect, painter, oldLayer: _oldClipRectLayer);
-      }
-    } else {
-      _oldClipRRectLayer = null;
-      _oldClipRectLayer = null;
-      callback(context, offset);
-    }
-  }
-
-  @override
-  double? computeDistanceToActualBaseline(TextBaseline baseline) {
-    double? result;
-    final BoxParentData? childParentData = parentData as BoxParentData?;
-    double? candidate = getDistanceToActualBaseline(baseline);
-    if (candidate != null) {
-      candidate += childParentData!.offset.dy;
-      if (result != null)
-        result = math.min(result, candidate);
-      else
-        result = candidate;
-    }
-    return result;
-  }
-
-  void applyOverflowPaintTransform(RenderBox child, Matrix4 transform) {
-    final Offset paintOffset = Offset(_paintOffsetX, _paintOffsetY);
-    transform.translate(paintOffset.dx, paintOffset.dy);
-  }
-
-  @override
-  Rect? describeApproximatePaintClip(RenderObject child) {
-    final Offset paintOffset = Offset(_paintOffsetX, _paintOffsetY);
-    if (_shouldClipAtPaintOffset(paintOffset, size)) return Offset.zero & size;
-    return null;
-  }
-
-  void debugOverflowProperties(DiagnosticPropertiesBuilder properties) {
-    if (_scrollableSize != null) properties.add(DiagnosticsProperty('scrollableSize', _scrollableSize));
-    if (_viewportSize != null) properties.add(DiagnosticsProperty('viewportSize', _viewportSize));
-    properties.add(DiagnosticsProperty('clipX', clipX));
-    properties.add(DiagnosticsProperty('clipY', clipY));
-  }
 }

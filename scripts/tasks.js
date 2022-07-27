@@ -9,9 +9,10 @@ const chalk = require('chalk');
 const fs = require('fs');
 const del = require('del');
 const os = require('os');
+const uploader = require('./utils/uploader');
 
 program
-.option('--built-with-debug-jsc', 'Built bridge binary with debuggable JSC.')
+.option('--static-quickjs', 'Build quickjs as static library and bundled into kraken library.', false)
 .parse(process.argv);
 
 const SUPPORTED_JS_ENGINES = ['jsc', 'quickjs'];
@@ -182,8 +183,6 @@ task('build-darwin-kraken-lib', done => {
     buildType = 'RelWithDebInfo';
   }
 
-  let builtWithDebugJsc = targetJSEngine === 'jsc' && !!program.builtWithDebugJsc;
-
   if (isProfile) {
     externCmakeArgs.push('-DENABLE_PROFILE=TRUE');
   }
@@ -192,9 +191,9 @@ task('build-darwin-kraken-lib', done => {
     externCmakeArgs.push('-DENABLE_ASAN=true');
   }
 
-  if (builtWithDebugJsc) {
-    let debugJsEngine = findDebugJSEngine(platform == 'darwin' ? 'macos' : platform);
-    externCmakeArgs.push(`-DDEBUG_JSC_ENGINE=${debugJsEngine}`)
+  // Bundle quickjs into kraken.
+  if (program.staticQuickjs) {
+    externCmakeArgs.push('-DSTATIC_QUICKJS=true');
   }
 
   execSync(`cmake -DCMAKE_BUILD_TYPE=${buildType} -DENABLE_TEST=true ${externCmakeArgs.join(' ')} \
@@ -403,14 +402,48 @@ task('sdk-clean', (done) => {
   done();
 });
 
+function insertStringSlice(code, position, slice) {
+  let leftHalf = code.substring(0, position);
+  let rightHalf = code.substring(position);
+
+  return leftHalf + slice + rightHalf;
+}
+
+function patchiOSFrameworkPList(frameworkPath) {
+  const pListPath = path.join(frameworkPath, 'Info.plist');
+  let pListString = fs.readFileSync(pListPath, {encoding: 'utf-8'});
+  let versionIndex = pListString.indexOf('CFBundleVersion');
+  if (versionIndex != -1) {
+    let versionStringLast = pListString.indexOf('</string>', versionIndex) + '</string>'.length;
+
+    pListString = insertStringSlice(pListString, versionStringLast, `
+        <key>MinimumOSVersion</key>
+        <string>9.0</string>`);
+    fs.writeFileSync(pListPath, pListString);
+  }
+}
+
 task(`build-ios-kraken-lib`, (done) => {
   const buildType = (buildMode == 'Release' || buildMode === 'RelWithDebInfo')  ? 'RelWithDebInfo' : 'Debug';
+  let externCmakeArgs = [];
+
+  if (process.env.ENABLE_ASAN === 'true') {
+    externCmakeArgs.push('-DENABLE_ASAN=true');
+  }
+
+  // Bundle quickjs into kraken.
+  if (program.staticQuickjs) {
+    externCmakeArgs.push('-DSTATIC_QUICKJS=true');
+  }
 
   // generate build scripts for simulator
   execSync(`cmake -DCMAKE_BUILD_TYPE=${buildType} \
     -DCMAKE_TOOLCHAIN_FILE=${paths.bridge}/cmake/ios.toolchain.cmake \
     -DPLATFORM=SIMULATOR64 \
+    -DDEPLOYMENT_TARGET=9.0 \
+    -DIS_IOS=TRUE \
     ${isProfile ? '-DENABLE_PROFILE=TRUE \\' : '\\'}
+    ${externCmakeArgs.join(' ')} \
     -DENABLE_BITCODE=FALSE -G "Unix Makefiles" -B ${paths.bridge}/cmake-build-ios-x64 -S ${paths.bridge}`, {
     cwd: paths.bridge,
     stdio: 'inherit',
@@ -426,10 +459,14 @@ task(`build-ios-kraken-lib`, (done) => {
     stdio: 'inherit'
   });
 
-  // Generate builds scripts for ARMv7
+  // Generate builds scripts for ARMv7s, ARMv7
   execSync(`cmake -DCMAKE_BUILD_TYPE=${buildType} \
     -DCMAKE_TOOLCHAIN_FILE=${paths.bridge}/cmake/ios.toolchain.cmake \
     -DPLATFORM=OS \
+    -DIS_IOS=TRUE \
+    -DARCHS="armv7;armv7s" \
+    -DDEPLOYMENT_TARGET=9.0 \
+    ${externCmakeArgs.join(' ')} \
     ${isProfile ? '-DENABLE_PROFILE=TRUE \\' : '\\'}
     -DENABLE_BITCODE=FALSE -G "Unix Makefiles" -B ${paths.bridge}/cmake-build-ios-arm -S ${paths.bridge}`, {
     cwd: paths.bridge,
@@ -441,17 +478,20 @@ task(`build-ios-kraken-lib`, (done) => {
     }
   });
 
-  // Build for ARMv7
+  // Build for ARMv7, ARMv7s
   execSync(`cmake --build ${paths.bridge}/cmake-build-ios-arm --target kraken kraken_static -- -j 12`, {
     stdio: 'inherit'
   });
 
-  // geneate builds scripts for ARM64
+  // Generate builds scripts for ARMv7s, ARMv7
   execSync(`cmake -DCMAKE_BUILD_TYPE=${buildType} \
-     -DCMAKE_TOOLCHAIN_FILE=${paths.bridge}/cmake/ios.toolchain.cmake \
-     -DPLATFORM=OS64 \
-     ${isProfile ? '-DENABLE_PROFILE=TRUE \\' : '\\'}
-     -DENABLE_BITCODE=FALSE -G "Unix Makefiles" -B ${paths.bridge}/cmake-build-ios-arm64 -S ${paths.bridge}`, {
+    -DCMAKE_TOOLCHAIN_FILE=${paths.bridge}/cmake/ios.toolchain.cmake \
+    -DPLATFORM=OS64 \
+    -DDEPLOYMENT_TARGET=9.0 \
+    -DIS_IOS=TRUE \
+    ${externCmakeArgs.join(' ')} \
+    ${isProfile ? '-DENABLE_PROFILE=TRUE \\' : '\\'}
+    -DENABLE_BITCODE=FALSE -G "Unix Makefiles" -B ${paths.bridge}/cmake-build-ios-arm64 -S ${paths.bridge}`, {
     cwd: paths.bridge,
     stdio: 'inherit',
     env: {
@@ -461,43 +501,54 @@ task(`build-ios-kraken-lib`, (done) => {
     }
   });
 
-  // build for ARMV64
+  // Build for ARM64
   execSync(`cmake --build ${paths.bridge}/cmake-build-ios-arm64 --target kraken kraken_static -- -j 12`, {
     stdio: 'inherit'
   });
 
-  const targetSourceFrameworks = ['kraken_bridge', 'quickjs'];
+  const targetSourceFrameworks = ['kraken_bridge'];
+
+  // If quickjs is not static, there will be another framework called quickjs.framework.
+  if (!program.staticQuickjs) {
+    targetSourceFrameworks.push('quickjs');
+  }
 
   targetSourceFrameworks.forEach(target => {
     const armDynamicSDKPath = path.join(paths.bridge, `build/ios/lib/arm/${target}.framework`);
     const arm64DynamicSDKPath = path.join(paths.bridge, `build/ios/lib/arm64/${target}.framework`);
     const x64DynamicSDKPath = path.join(paths.bridge, `build/ios/lib/x86_64/${target}.framework`);
 
+    // Create flat frameworks with multiple archs.
+    execSync(`lipo -create ${armDynamicSDKPath}/${target} ${arm64DynamicSDKPath}/${target} -output ${armDynamicSDKPath}/${target}`, {
+      stdio: 'inherit'
+    });
+
+    // CMake generated iOS frameworks does not contains <MinimumOSVersion> key in Info.plist.
+    patchiOSFrameworkPList(x64DynamicSDKPath);
+    patchiOSFrameworkPList(armDynamicSDKPath);
+
     const targetDynamicSDKPath = `${paths.bridge}/build/ios/framework`;
     const frameworkPath = `${targetDynamicSDKPath}/${target}.xcframework`;
     mkdirp.sync(targetDynamicSDKPath);
 
-    // merge armv7 into armv8
-    execSync(`lipo -create ${armDynamicSDKPath}/${target} ${arm64DynamicSDKPath}/${target} -output ${arm64DynamicSDKPath}/${target}`, {
-      stdio: 'inherit'
-    });
+    // dSYM file are located at /path/to/kraken/build/ios/lib/${arch}/target.dSYM.
+    // Create dSYM for x86_64.
+    execSync(`dsymutil ${x64DynamicSDKPath}/${target} --out ${x64DynamicSDKPath}/../${target}.dSYM`, { stdio: 'inherit' });
+    // Create dSYM for arm64,armv7.
+    execSync(`dsymutil ${armDynamicSDKPath}/${target} --out ${armDynamicSDKPath}/../${target}.dSYM`, { stdio: 'inherit' });
 
+    // Generated xcframework at located at /path/to/kraken/build/ios/framework/${target}.xcframework.
+    // Generate xcframework with dSYM.
     if (buildMode === 'RelWithDebInfo') {
-      // Create dSYM for x86_64
-      execSync(`dsymutil ${x64DynamicSDKPath}/${target}`, { stdio: 'inherit' });
-
-      // Create dSYM for arm64
-      execSync(`dsymutil ${arm64DynamicSDKPath}/${target}`, { stdio: 'inherit' });
       execSync(`xcodebuild -create-xcframework \
-        -framework ${x64DynamicSDKPath} -debug-symbols ${x64DynamicSDKPath}/${target}.dSYM \
-        -framework ${arm64DynamicSDKPath} -debug-symbols ${arm64DynamicSDKPath}/${target}.dSYM -output ${frameworkPath}`, {
+        -framework ${x64DynamicSDKPath} -debug-symbols ${x64DynamicSDKPath}/../${target}.dSYM \
+        -framework ${armDynamicSDKPath} -debug-symbols ${armDynamicSDKPath}/../${target}.dSYM -output ${frameworkPath}`, {
         stdio: 'inherit'
       });
-
     } else {
       execSync(`xcodebuild -create-xcframework \
         -framework ${x64DynamicSDKPath} \
-        -framework ${arm64DynamicSDKPath} -output ${frameworkPath}`, {
+        -framework ${armDynamicSDKPath} -output ${frameworkPath}`, {
         stdio: 'inherit'
       });
     }
@@ -528,24 +579,88 @@ task('build-ios-frameworks', (done) => {
   done();
 });
 
+task('build-linux-kraken-lib', (done) => {
+  const buildType = buildMode == 'Release' ? 'Release' : 'Relwithdebinfo';
+  const cmakeGeneratorTemplate = platform == 'win32' ? 'Ninja' : 'Unix Makefiles';
+
+  const soBinaryDirectory = path.join(paths.bridge, `build/linux/lib/`);
+  const bridgeCmakeDir = path.join(paths.bridge, 'cmake-build-linux');
+  // generate project
+  execSync(`cmake -DCMAKE_BUILD_TYPE=${buildType} \
+  ${isProfile ? '-DENABLE_PROFILE=TRUE \\' : '\\'}
+  -G "${cmakeGeneratorTemplate}" \
+  -B ${paths.bridge}/cmake-build-linux -S ${paths.bridge}`,
+    {
+      cwd: paths.bridge,
+      stdio: 'inherit',
+      env: {
+        ...process.env,
+        KRAKEN_JS_ENGINE: targetJSEngine,
+        LIBRARY_OUTPUT_DIR: soBinaryDirectory
+      }
+    });
+
+  // build
+  execSync(`cmake --build ${bridgeCmakeDir} --target kraken -- -j 12`, {
+    stdio: 'inherit'
+  });
+
+  const libkrakenPath = path.join(paths.bridge, 'build/linux/lib/libkraken.so');
+  // Patch libkraken.so's runtime path.
+  execSync(`chrpath --replace \\$ORIGIN ${libkrakenPath}`, { stdio: 'inherit' });
+
+  done();
+});
+
 task('build-android-kraken-lib', (done) => {
   let androidHome;
 
-  if (platform == 'win32') {
-    androidHome = path.join(process.env.LOCALAPPDATA, 'Android\\Sdk');
+  let ndkDir = '';
+
+  // If ANDROID_NDK_HOME env defined, use it.
+  if (process.env.ANDROID_NDK_HOME) {
+    ndkDir = process.env.ANDROID_NDK_HOME;
   } else {
-    androidHome = path.join(process.env.HOME, 'Library/Android/sdk')
+    if (platform == 'win32') {
+      androidHome = path.join(process.env.LOCALAPPDATA, 'Android\\Sdk');
+    } else {
+      androidHome = path.join(process.env.HOME, 'Library/Android/sdk')
+    }
+    const ndkVersion = '23.2.8568313';
+    ndkDir = path.join(androidHome, 'ndk', ndkVersion);
+
+    if (!fs.existsSync(ndkDir)) {
+      throw new Error('Android NDK version (23.2.8568313) not installed.');
+    }
   }
 
-  const ndkDir = path.join(androidHome, 'ndk');
-  const ndkVersion = '21.4.7075529';
-
-  if (!fs.existsSync(path.join(ndkDir, ndkVersion))) {
-    throw new Error('Android NDK version (21.4.7075529) not installed.');
-  }
-
-  const archs = ['arm64-v8a', 'armeabi-v7a'];
+  const archs = ['arm64-v8a', 'armeabi-v7a', 'x86'];
+  const toolChainMap = {
+    'arm64-v8a': 'aarch64-linux-android',
+    'armeabi-v7a': 'arm-linux-androideabi',
+    'x86': 'i686-linux-android'
+  };
   const buildType = (buildMode === 'Release' || buildMode == 'Relwithdebinfo') ? 'Relwithdebinfo' : 'Debug';
+  let externCmakeArgs = [];
+
+  if (process.env.ENABLE_ASAN === 'true') {
+    externCmakeArgs.push('-DENABLE_ASAN=true');
+  }
+
+  // Bundle quickjs into kraken.
+  if (program.staticQuickjs) {
+    externCmakeArgs.push('-DSTATIC_QUICKJS=true');
+  }
+
+  const soFileNames = [
+    'libkraken',
+    'libc++_shared'
+  ];
+
+  // If quickjs is not static, there will be another so called libquickjs.so.
+  if (!program.staticQuickjs) {
+    soFileNames.push('libquickjs');
+  }
 
   const cmakeGeneratorTemplate = platform == 'win32' ? 'Ninja' : 'Unix Makefiles';
   archs.forEach(arch => {
@@ -553,11 +668,12 @@ task('build-android-kraken-lib', (done) => {
     const bridgeCmakeDir = path.join(paths.bridge, 'cmake-build-android-' + arch);
     // generate project
     execSync(`cmake -DCMAKE_BUILD_TYPE=${buildType} \
-    -DCMAKE_TOOLCHAIN_FILE=${path.join(androidHome, 'ndk', ndkVersion, '/build/cmake/android.toolchain.cmake')} \
-    -DANDROID_NDK=${path.join(androidHome, '/ndk/', ndkVersion)} \
+    -DCMAKE_TOOLCHAIN_FILE=${path.join(ndkDir, '/build/cmake/android.toolchain.cmake')} \
+    -DANDROID_NDK=${ndkDir} \
     -DIS_ANDROID=TRUE \
     -DANDROID_ABI="${arch}" \
     ${isProfile ? '-DENABLE_PROFILE=TRUE \\' : '\\'}
+    ${externCmakeArgs.join(' ')} \
     -DANDROID_PLATFORM="android-18" \
     -DANDROID_STL=c++_shared \
     -G "${cmakeGeneratorTemplate}" \
@@ -576,6 +692,22 @@ task('build-android-kraken-lib', (done) => {
     execSync(`cmake --build ${bridgeCmakeDir} --target kraken -- -j 12`, {
       stdio: 'inherit'
     });
+
+    // Copy libc++_shared.so to dist from NDK.
+    const libcppSharedPath = path.join(ndkDir, `./toolchains/llvm/prebuilt/${os.platform()}-x86_64/sysroot/usr/lib/${toolChainMap[arch]}/libc++_shared.so`);
+    execSync(`cp ${libcppSharedPath} ${soBinaryDirectory}`);
+
+    // Strip release binary in release mode.
+    if (buildMode === 'Release' || buildMode === 'RelWithDebInfo') {
+      const strip = path.join(ndkDir, `./toolchains/llvm/prebuilt/${os.platform()}-x86_64/bin/llvm-strip`);
+      const objcopy = path.join(ndkDir, `./toolchains/llvm/prebuilt/${os.platform()}-x86_64/bin/llvm-objcopy`);
+
+      for (let soFileName of soFileNames) {
+        const soBinaryFile = path.join(soBinaryDirectory, soFileName + '.so');
+        execSync(`${objcopy} --only-keep-debug "${soBinaryFile}" "${soBinaryDirectory}/${soFileName}.debug"`);
+        execSync(`${strip} --strip-debug --strip-unneeded "${soBinaryFile}"`)
+      }
+    }
   });
 
   done();
@@ -642,27 +774,83 @@ function getDevicesInfo() {
   return androidDevices;
 }
 
+task('build-benchmark-app', async (done) => {
+  execSync('npm install', { cwd: path.join(paths.performanceTests, '/benchmark') });
+  const result = spawnSync('npm', ['run', 'build'], {
+    cwd: path.join(paths.performanceTests, '/benchmark')
+  });
+
+  if (result.status !== 0) {
+    return done(result.status);
+  }
+
+  done();
+})
+
 task('run-benchmark', async (done) => {
+  const serverPort = '8892';
+
+  const childProcess = spawn('http-server', ['./', `-p ${serverPort}`], {
+    stdio: 'pipe',
+    cwd: path.join(paths.performanceTests, '/benchmark/build')
+  })
+
+  let serverIpAddress;
+  let interfaces = os.networkInterfaces();
+  for (let devName in interfaces) {
+    interfaces[devName].forEach((item) => {
+      if (item.family === 'IPv4' && !item.internal && item.address !== '127.0.0.1') {
+        serverIpAddress = item.address;
+      }
+    })
+  }
+
+  if (!serverIpAddress) {
+    const err = new Error('The IP address was not found.');
+    done(err);
+  }
+  
   let androidDevices = getDevicesInfo();
-  execSync(`flutter run -d ${androidDevices[0].id} --profile`, {stdio: 'inherit', cwd: paths.performanceTests});
+
+  let performanceInfos = execSync(
+    `flutter run -d ${androidDevices[0].id} --profile --dart-define="SERVER=${serverIpAddress}:${serverPort}" | grep Performance`,
+    {
+      cwd: paths.performanceTests
+    }
+  ).toString().split(/\n/);
+
+  const KrakenPerformancePath = 'kraken-performance';
+  for (let item in performanceInfos) {
+    let info = performanceInfos[item];
+    const match = /\[(\s?\d,?)+\]/.exec(info);
+    if (match) {
+      const viewType = item == 0 ? 'kraken' : 'web';
+      try {
+        let performanceDatas = JSON.parse(match[0]);
+        // Remove the top and the bottom five from the final numbers to eliminate fluctuations, and calculate the average.
+        performanceDatas = performanceDatas.sort().slice(5, performanceDatas.length - 5);
+        
+        // Save performance list to file and upload to OSS.
+        const listFile = path.join(__dirname, `${viewType}-load-time-list.js`);
+        fs.writeFileSync(listFile, `performanceCallback('${viewType}LoadtimeList', [${performanceDatas.toString()}]);`);
+
+        let WebviewPerformanceOSSPath = `${KrakenPerformancePath}/${viewType}-loadtimeList.js`;
+        await uploader(WebviewPerformanceOSSPath, listFile).then(() => {
+          console.log(`Performance Upload Success: https://kraken.oss-cn-hangzhou.aliyuncs.com/${WebviewPerformanceOSSPath}`);
+        }).catch(err => done(err));
+        // Save performance data of Webview with kraken version.
+        let WebviewPerformanceWithVersionOSSPath = `${KrakenPerformancePath}/${viewType}-${pkgVersion}-loadtimeList.js`;
+        await uploader(WebviewPerformanceWithVersionOSSPath, listFile).then(() => {
+          console.log(`Performance Upload Success: https://kraken.oss-cn-hangzhou.aliyuncs.com/${WebviewPerformanceWithVersionOSSPath}`);
+        }).catch(err => done(err));
+      } catch {
+        const err = new Error('The performance info parse exception.');
+        done(err);
+      }
+    }
+  }
+  
   execSync('adb uninstall com.example.performance_tests');
-  execSync(`flutter run -d ${androidDevices[0].id} --profile`, {stdio: 'inherit', cwd: paths.performanceTests});
-  execSync('adb uninstall com.example.performance_tests');
-  execSync(`flutter run -d ${androidDevices[0].id} --profile`, {stdio: 'inherit', cwd: paths.performanceTests});
-  execSync('adb uninstall com.example.performance_tests');
-  execSync(`flutter run -d ${androidDevices[0].id} --profile`, {stdio: 'inherit', cwd: paths.performanceTests});
-  execSync('adb uninstall com.example.performance_tests');
-  execSync(`flutter run -d ${androidDevices[0].id} --profile`, {stdio: 'inherit', cwd: paths.performanceTests});
-  execSync('adb uninstall com.example.performance_tests');
-  execSync(`flutter run -d ${androidDevices[0].id} --profile`, {stdio: 'inherit', cwd: paths.performanceTests});
-  execSync('adb uninstall com.example.performance_tests');
-  execSync(`flutter run -d ${androidDevices[0].id} --profile`, {stdio: 'inherit', cwd: paths.performanceTests});
-  execSync('adb uninstall com.example.performance_tests');
-  execSync(`flutter run -d ${androidDevices[0].id} --profile`, {stdio: 'inherit', cwd: paths.performanceTests});
-  execSync('adb uninstall com.example.performance_tests');
-  execSync(`flutter run -d ${androidDevices[0].id} --profile`, {stdio: 'inherit', cwd: paths.performanceTests});
-  execSync('adb uninstall com.example.performance_tests');
-  execSync(`flutter run -d ${androidDevices[0].id} --profile`, {stdio: 'inherit', cwd: paths.performanceTests});
-  execSync('adb uninstall com.example.performance_tests');
+  
   done();
 });

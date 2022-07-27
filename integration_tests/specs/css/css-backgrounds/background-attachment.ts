@@ -1,10 +1,11 @@
 describe('background-attachment', () => {
+  // @TODO: Support background-attachment: fixed.
   xit('fixed', async () => {
     let container = createElementWithStyle('div', {
       'background-attachment': 'fixed',
       'background-position': '1em 5em',
       'background-image':
-        'url(https://kraken.oss-cn-hangzhou.aliyuncs.com/images/cat.png)',
+        'url(assets/cat.png)',
       'background-repeat': 'no-repeat',
       border: '1px solid blue',
       height: '250px',
@@ -24,7 +25,7 @@ describe('background-attachment', () => {
     let container = createElementWithStyle('div', {
       'background-attachment': 'local',
       'background-image':
-        'url(https://kraken.oss-cn-hangzhou.aliyuncs.com/images/cat.png)',
+        'url(assets/cat.png)',
       'background-repeat': 'no-repeat',
       'background-color': 'yellow',
       border: '10px solid rgba(0, 0, 0, 0.3)',
@@ -41,7 +42,7 @@ describe('background-attachment', () => {
     await sleep(1);
     await snapshot();
     container.scrollTo(0, 100);
-    await snapshot(0.1);
+    await snapshot();
   });
 
   it('scroll', async () => {
@@ -49,7 +50,7 @@ describe('background-attachment', () => {
       'background-attachment': 'local',
       backgroundRepeat: 'no-repeat',
       'background-image':
-        'url(https://kraken.oss-cn-hangzhou.aliyuncs.com/images/cat.png)',
+        'url(assets/cat.png)',
       'background-color': 'yellow',
       border: '10px solid rgba(0, 0, 0, 0.3)',
       height: '250px',

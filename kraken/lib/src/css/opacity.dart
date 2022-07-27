@@ -1,13 +1,13 @@
 /*
- * Copyright (C) 2019-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
  */
 
 import 'dart:ui' as ui;
 
 import 'package:kraken/css.dart';
+import 'package:kraken/rendering.dart';
 
-mixin CSSOpacityMixin on RenderStyleBase {
+mixin CSSOpacityMixin on RenderStyle {
 
   /// The fraction to scale the child's alpha value.
   ///
@@ -19,23 +19,31 @@ mixin CSSOpacityMixin on RenderStyleBase {
   /// Values 1.0 and 0.0 are painted with a fast path. Other values
   /// require painting the child into an intermediate buffer, which is
   /// expensive.
-  double get opacity => _opacity;
-  double _opacity = 1.0;
+  @override
+  double get opacity => _opacity ?? 1.0;
+  double? _opacity;
   set opacity(double? value) {
-    if (value == null) return;
-    assert(value >= 0.0 && value <= 1.0);
-    if (_opacity == value)
-      return;
+    if (_opacity == value) return;
+
     _opacity = value;
-    int alpha = ui.Color.getAlphaFromOpacity(_opacity);
+    int alpha = ui.Color.getAlphaFromOpacity(opacity);
     renderBoxModel!.alpha = alpha;
-    if (alpha != 0 && alpha != 255)
-      renderBoxModel!.markNeedsCompositingBitsUpdate();
-    renderBoxModel!.markNeedsPaint();
+
+    // Mark the compositing state for this render object as dirty
+    // cause it will create new layer when opacity is valid.
+    if (alpha != 0 && alpha != 255) {
+      renderBoxModel?.markNeedsCompositingBitsUpdate();
+    }
+    // Opacity effect the stacking context.
+    RenderBoxModel? parentRenderer = parent?.renderBoxModel;
+    if (parentRenderer is RenderLayoutBox) {
+      parentRenderer.markChildrenNeedsSort();
+    }
+
+    renderBoxModel?.markNeedsPaint();
   }
 
-  void updateOpacity(String value) {
-    double? opacityValue = CSSStyleDeclaration.isNullOrEmptyValue(value) ? 1.0 : CSSLength.toDouble(value);
-    opacity = opacityValue;
+  static double? resolveOpacity(String value) {
+    return CSSStyleDeclaration.isNullOrEmptyValue(value) ? 1.0 : CSSLength.toDouble(value);
   }
 }

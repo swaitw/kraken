@@ -1,11 +1,11 @@
-// Copyright 2014 The Flutter Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+/*
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
+ */
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
-// Single finger drag gestures.
 // Modified from Flutter gesture/monodrag.dart.
+// Copyright 2014 The Flutter Authors. All rights reserved.
+
+import 'package:flutter/gestures.dart';
 
 import 'package:flutter/rendering.dart';
 import 'package:kraken/dom.dart';
@@ -22,7 +22,7 @@ typedef GestureEventListener = void Function(GestureEvent event);
 
 typedef TouchEventListener = void Function(TouchEvent event);
 
-/// Widget can user EventClient to add event lisnter on view port.
+/// Widget can user EventClient to add event listener on viewport.
 class GestureListener {
   GestureEventListener? onDrag;
   TouchEventListener? onTouchStart;
@@ -45,10 +45,10 @@ abstract class CompetitiveDragGestureRecognizer extends OneSequenceGestureRecogn
   /// {@macro flutter.gestures.gestureRecognizer.kind}
   CompetitiveDragGestureRecognizer({
     Object? debugOwner,
-    PointerDeviceKind? kind,
+    Set<PointerDeviceKind>? supportedDevices,
     this.dragStartBehavior = DragStartBehavior.start,
     this.velocityTrackerBuilder = _defaultBuilder,
-  }) : super(debugOwner: debugOwner, kind: kind);
+  }) : super(debugOwner: debugOwner, supportedDevices: supportedDevices);
 
   static VelocityTracker _defaultBuilder(PointerEvent event) => VelocityTracker.withKind(event.kind);
   /// Configure the behavior of offsets sent to [onStart].
@@ -479,21 +479,21 @@ class ScrollVerticalDragGestureRecognizer extends CompetitiveDragGestureRecogniz
   /// {@macro flutter.gestures.gestureRecognizer.kind}
   ScrollVerticalDragGestureRecognizer({
     Object? debugOwner,
-    PointerDeviceKind? kind,
-  }) : super(debugOwner: debugOwner, kind: kind);
+    Set<PointerDeviceKind>? supportedDevices,
+  }) : super(debugOwner: debugOwner, supportedDevices: supportedDevices);
 
   late IsAcceptedDragCallback isAcceptedDrag;
 
   @override
   bool isFlingGesture(VelocityEstimate estimate, PointerDeviceKind kind) {
     final double minVelocity = minFlingVelocity ?? kMinFlingVelocity;
-    final double minDistance = minFlingDistance ?? computeHitSlop(kind);
+    final double minDistance = minFlingDistance ?? computeHitSlop(kind, gestureSettings);
     return estimate.pixelsPerSecond.dy.abs() > minVelocity && estimate.offset.dy.abs() > minDistance;
   }
 
   @override
   bool _hasSufficientGlobalDistanceToAccept(PointerDeviceKind pointerDeviceKind) {
-    return _globalDistanceMoved.abs() > computeHitSlop(pointerDeviceKind);
+    return _globalDistanceMoved.abs() > computeHitSlop(pointerDeviceKind, gestureSettings);
   }
 
   @override
@@ -522,21 +522,21 @@ class ScrollHorizontalDragGestureRecognizer extends CompetitiveDragGestureRecogn
   /// {@macro flutter.gestures.gestureRecognizer.kind}
   ScrollHorizontalDragGestureRecognizer({
     Object? debugOwner,
-    PointerDeviceKind? kind,
-  }) : super(debugOwner: debugOwner, kind: kind);
+    Set<PointerDeviceKind>? supportedDevices,
+  }) : super(debugOwner: debugOwner, supportedDevices: supportedDevices);
 
   late IsAcceptedDragCallback isAcceptedDrag;
 
   @override
   bool isFlingGesture(VelocityEstimate estimate, PointerDeviceKind kind) {
     final double minVelocity = minFlingVelocity ?? kMinFlingVelocity;
-    final double minDistance = minFlingDistance ?? computeHitSlop(kind);
+    final double minDistance = minFlingDistance ?? computeHitSlop(kind, gestureSettings);
     return estimate.pixelsPerSecond.dx.abs() > minVelocity && estimate.offset.dx.abs() > minDistance;
   }
 
   @override
   bool _hasSufficientGlobalDistanceToAccept(PointerDeviceKind pointerDeviceKind) {
-    return _globalDistanceMoved.abs() > computeHitSlop(pointerDeviceKind);
+    return _globalDistanceMoved.abs() > computeHitSlop(pointerDeviceKind, gestureSettings);
   }
 
   @override

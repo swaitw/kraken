@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2021-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
  */
 
 
@@ -26,7 +25,7 @@ class ClipBoardModule extends BaseModule {
   void dispose() {}
 
   @override
-  String invoke(String method, dynamic params, callback) {
+  String invoke(String method, params, callback) {
     if (method == 'readText') {
       ClipBoardModule.readText().then((String value) {
         callback(data: value);

@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2021 Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
  */
 
 #ifndef KRAKENBRIDGE_IMAGE_ELEMENT_H
@@ -10,30 +9,40 @@
 
 namespace kraken::binding::qjs {
 
+void bindImageElement(ExecutionContext* context);
 
-void bindImageElement(std::unique_ptr<JSContext> &context);
-
-
+class ImageElementInstance;
 class ImageElement : public Element {
-public:
+ public:
   ImageElement() = delete;
-  explicit ImageElement(JSContext *context);
-  JSValue instanceConstructor(QjsContext *ctx, JSValue func_obj, JSValue this_val, int argc, JSValue *argv) override;
+  explicit ImageElement(ExecutionContext* context);
+  JSValue instanceConstructor(JSContext* ctx, JSValue func_obj, JSValue this_val, int argc, JSValue* argv) override;
 
   OBJECT_INSTANCE(ImageElement);
-private:
 
+ private:
+  DEFINE_PROTOTYPE_READONLY_PROPERTY(naturalWidth);
+  DEFINE_PROTOTYPE_READONLY_PROPERTY(naturalHeight);
+
+  DEFINE_PROTOTYPE_PROPERTY(width);
+  DEFINE_PROTOTYPE_PROPERTY(height);
+  DEFINE_PROTOTYPE_PROPERTY(src);
+  DEFINE_PROTOTYPE_PROPERTY(loading);
+  DEFINE_PROTOTYPE_PROPERTY(scaling);
+  friend ImageElementInstance;
 };
+
 class ImageElementInstance : public ElementInstance {
-public:
+ public:
   ImageElementInstance() = delete;
-  explicit ImageElementInstance(ImageElement *element);
-  bool dispatchEvent(EventInstance *event);
-private:
+  explicit ImageElementInstance(ImageElement* element);
+  bool dispatchEvent(EventInstance* event);
+
+ private:
   bool freed{false};
-  DEFINE_HOST_CLASS_PROPERTY(6, width, height, naturalWidth, naturalHeight, src, loading)
+  friend ImageElement;
 };
 
-}
+}  // namespace kraken::binding::qjs
 
-#endif //KRAKENBRIDGE_IMAGE_ELEMENTT_H
+#endif  // KRAKENBRIDGE_IMAGE_ELEMENTT_H

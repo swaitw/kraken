@@ -1,6 +1,6 @@
 /*auto generated*/
 describe('align-self', () => {
-  xit('001', async () => {
+  it('001', async () => {
     let test;
     let cover;
     test = createElement(
@@ -67,7 +67,8 @@ describe('align-self', () => {
 
     await snapshot();
   });
-  xit('002', async () => {
+
+  it('002', async () => {
     let test;
     let cover;
     test = createElement(
@@ -354,7 +355,7 @@ describe('align-self', () => {
 
     await snapshot();
   });
-  xit('007', async () => {
+  it('007', async () => {
     let test;
     let cover;
     test = createElement(
@@ -422,7 +423,8 @@ describe('align-self', () => {
 
     await snapshot();
   });
-  xit('008', async () => {
+
+  it('008', async () => {
     let p;
     let test;
     let cover;
@@ -504,7 +506,8 @@ describe('align-self', () => {
 
     await snapshot();
   });
-  xit('009', async () => {
+
+  it('009', async () => {
     let p;
     let test;
     let top;
@@ -865,7 +868,7 @@ describe('align-self', () => {
 
     await snapshot();
   });
-  xit('013', async () => {
+  it('013', async () => {
     let test;
     let cover;
     test = createElement(
@@ -931,7 +934,7 @@ describe('align-self', () => {
     await snapshot();
   });
 
-  xit("015-ref", async () => {
+  it("015-ref", async () => {
     let p;
     let item1;
     let item2;
@@ -1691,8 +1694,145 @@ describe('align-self', () => {
 
     requestAnimationFrame(async () => {
       foo.style.alignSelf = 'flex-end';
-      await snapshot(0.1);
+      await snapshot();
       done();
     });
+  });
+
+  it('should work with value change to empty string', async (done) => {
+    let div;
+    let item;
+    div = createElement(
+    'div',
+      {
+        style: {
+          display: 'flex',
+          width: '200px',
+          height: '200px',
+          background: 'yellow',
+        },
+      },
+      [
+        (item = createElement('div', {
+          style: {
+            alignSelf: 'center',
+            width: '100px',
+            height: '100px',
+            backgroundColor: 'green'
+          }
+        }))
+      ]
+    );
+
+    document.body.appendChild(div);
+
+    await snapshot();
+
+    requestAnimationFrame(async () => {
+      item.style.alignSelf = '';
+      await snapshot();
+      done();
+    });
+  });
+
+  it('stretch should not work with positioned child of no top bottom', async () => {
+    let item = createElement('div', {
+        style: {
+            display: 'flex',
+            flexDirection: 'row',
+            height: '50px',
+            backgroundColor: 'coral',
+        }
+    }, [
+        createElement('div', {
+            style: {
+                position: 'absolute',
+                alignSelf: 'stretch',
+                backgroundColor: 'lightblue',
+            }
+        }, [
+            createText('stretch')
+        ]),
+    ]);
+
+    BODY.appendChild(item);
+    
+    await snapshot();
+  });
+
+  it('flex-start should work with positioned child of no top bottom', async () => {
+    let item = createElement('div', {
+        style: {
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            height: '50px',
+            backgroundColor: 'coral',
+        }
+    }, [
+        createElement('div', {
+            style: {
+                position: 'absolute',
+                alignSelf: 'flex-start',
+                backgroundColor: 'lightblue',
+            }
+        }, [
+            createText('flex-start')
+        ]),
+    ]);
+
+    BODY.appendChild(item);
+    
+    await snapshot();
+  });
+  
+  it('center should work with positioned child of no top bottom', async () => {
+    let item = createElement('div', {
+        style: {
+            display: 'flex',
+            flexDirection: 'row',
+            height: '50px',
+            backgroundColor: 'coral',
+        }
+    }, [
+        createElement('div', {
+            style: {
+                position: 'absolute',
+                alignSelf: 'center',
+                backgroundColor: 'lightblue',
+            }
+        }, [
+            createText('center')
+        ]),
+    ]);
+
+    BODY.appendChild(item);
+    
+    await snapshot();
+  });
+
+  it('flex-end should work with positioned child of no top bottom', async () => {
+    let item = createElement('div', {
+        style: {
+            display: 'flex',
+            flexDirection: 'row',
+            height: '50px',
+            backgroundColor: 'coral',
+        }
+    }, [
+        createElement('div', {
+            style: {
+                position: 'absolute',
+                alignSelf: 'flex-end',
+                backgroundColor: 'lightblue',
+            }
+        }, [
+            createText('flex-end')
+        ]),
+    ]);
+
+    BODY.appendChild(item);
+    
+    await snapshot();
   });
 });

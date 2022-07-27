@@ -1,11 +1,10 @@
 /*
- * Copyright (C) 2019-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
  */
 
 import 'dart:math';
-import 'dart:ui' show Color;
 
+import 'package:quiver/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
 import 'package:kraken/css.dart';
@@ -173,6 +172,7 @@ final _colorHslRegExp =
 final _colorRgbRegExp =
     RegExp(r'^(rgba?)\(([+-]?[0-9.]+%?)[,\s]+([+-]?[0-9.]+%?)[,\s]+([+-]?[0-9.]+%?)([,\s/]+([+-]?[0-9.]+%?))?\s*\)$');
 
+final LinkedLruHashMap<String, Color> _cachedParsedColor = LinkedLruHashMap(maximumSize: 100);
 /// #123
 /// #123456
 /// rgb(r,g,b)
@@ -190,7 +190,7 @@ class CSSColor {
   //   Output = '0 2rpx 4rpx 0 rgba0, 0 25rpx 50rpx 0 rgba1', with color cached:
   //     'rgba0' -> Color(0x19000000), 'rgba1' -> Color(0x26000000)
   // Cache will be terminated after used once.
-  static final Map<String, Color> _cachedColor = {};
+
 
   static String convertToHex(Color color) {
     String red = color.red.toRadixString(16).padLeft(2);
@@ -227,13 +227,25 @@ class CSSColor {
     return color == CURRENT_COLOR || parseColor(color) != null;
   }
 
+  static Color? resolveColor(String color, RenderStyle renderStyle, String propertyName) {
+    if (color == CURRENT_COLOR) {
+      if (propertyName == COLOR) {
+        return null;
+      }
+      // Update property that deps current color.
+      renderStyle.addColorRelativeProperty(propertyName);
+      return renderStyle.color;
+    }
+    return parseColor(color);
+  }
+
   static Color? parseColor(String color) {
     color = color.trim().toLowerCase();
 
     if (color == TRANSPARENT) {
       return CSSColor.transparent;
-    } else if (_cachedColor.containsKey(color)) {
-      return _cachedColor[color];
+    } else if (_cachedParsedColor.containsKey(color)) {
+      return _cachedParsedColor[color];
     }
 
     Color? parsed;
@@ -288,7 +300,7 @@ class CSSColor {
     }
 
     if (parsed != null) {
-      _cachedColor[color] = parsed;
+      _cachedParsedColor[color] = parsed;
     }
 
     return parsed;

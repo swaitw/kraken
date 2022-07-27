@@ -1,3 +1,6 @@
+/*
+ * Copyright (C) 2022-present The Kraken authors. All rights reserved.
+ */
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -43,7 +46,7 @@ class LocalHttpServer {
           data.addAll(chunk);
 
           if (data.length >= 4) {
-            var lastFour = data.sublist(chunk.length - 4, chunk.length);
+            var lastFour = data.sublist(data.length - 4, data.length);
 
             // Ends with \r\n\r\n or
             // @TODO: content-length.
@@ -84,6 +87,7 @@ class LocalHttpServer {
                 .then((Uint8List bytes) => utf8.decode(bytes))
                 .then((String input) => _format(input))
                 .then((String content) => utf8.encode(content))
+                .catchError((Object err, StackTrace? stack) => file.readAsBytes())
                 .then(socket.add)
                 .then((_) => socket.close());
             }

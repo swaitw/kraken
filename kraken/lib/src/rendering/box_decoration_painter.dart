@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2019-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
  */
 
 import 'dart:ui' as ui show Image;
@@ -21,12 +20,12 @@ enum _BorderDirection {
 /// An object that paints a [BoxDecoration] into a canvas.
 class BoxDecorationPainter extends BoxPainter {
   BoxDecorationPainter(
-    this._decoration, this.padding, this.renderStyle, VoidCallback onChanged)
+    this.padding, this.renderStyle, VoidCallback onChanged)
     : super(onChanged);
 
   EdgeInsets? padding;
-  RenderStyle renderStyle;
-  final CSSBoxDecoration _decoration;
+  CSSRenderStyle renderStyle;
+  CSSBoxDecoration get _decoration => renderStyle.decoration!;
 
   Paint? _cachedBackgroundPaint;
   Rect? _rectForCachedBackgroundPaint;
@@ -36,6 +35,7 @@ class BoxDecorationPainter extends BoxPainter {
     _decoration.gradient != null || _rectForCachedBackgroundPaint == null);
 
     if (_cachedBackgroundPaint == null ||
+      _decoration.color !=  null ||
       (_decoration.gradient != null &&
         _rectForCachedBackgroundPaint != rect)) {
       final Paint paint = Paint();
@@ -57,17 +57,17 @@ class BoxDecorationPainter extends BoxPainter {
     Canvas canvas, Rect rect, Paint? paint, TextDirection? textDirection) {
     switch (_decoration.shape) {
       case BoxShape.circle:
-        assert(_decoration.borderRadius == null);
+        assert(!_decoration.hasBorderRadius);
         final Offset center = rect.center;
         final double radius = rect.shortestSide / 2.0;
         canvas.drawCircle(center, radius, paint!);
         break;
       case BoxShape.rectangle:
-        if (_decoration.borderRadius == null) {
+        if (!_decoration.hasBorderRadius) {
           canvas.drawRect(rect, paint!);
         } else {
           canvas.drawRRect(
-            _decoration.borderRadius!.resolve(textDirection).toRRect(rect),
+            _decoration.borderRadius!.toRRect(rect),
             paint!);
         }
         break;
@@ -76,7 +76,7 @@ class BoxDecorationPainter extends BoxPainter {
 
   void _paintShadows(Canvas canvas, Rect rect, TextDirection? textDirection) {
     if (_decoration.boxShadow == null) return;
-    for (final CSSBoxShadow boxShadow in _decoration.boxShadow!) {
+    for (final KrakenBoxShadow boxShadow in _decoration.boxShadow!) {
       if (boxShadow.inset) {
         _paintInsetBoxShadow(canvas, rect, textDirection, boxShadow);
       } else {
@@ -112,14 +112,14 @@ class BoxDecorationPainter extends BoxPainter {
     // Path of box shadow including blur rect
     Path shadowBlurPath;
 
-    if (_decoration.borderRadius == null) {
+    if (!_decoration.hasBorderRadius) {
       borderPath = Path()..addRect(rect);
       shadowPath = Path()..addRect(shadowRect);
       shadowBlurPath = Path()..addRect(shadowBlurRect);
     } else {
       borderPath = Path()
         ..addRRect(
-          _decoration.borderRadius!.resolve(textDirection).toRRect(rect));
+          _decoration.borderRadius!.toRRect(rect));
       shadowPath = Path()
         ..addRRect(_decoration.borderRadius!
           .resolve(textDirection)
@@ -156,20 +156,20 @@ class BoxDecorationPainter extends BoxPainter {
     // the inset box-shadow is drawn inside the padding box edge.
     // https://drafts.csswg.org/css-backgrounds-3/#shadow-shape
     Rect paddingBoxRect = Rect.fromLTRB(
-      rect.left + renderStyle.borderLeft,
-      rect.top + renderStyle.borderTop,
-      rect.right - renderStyle.borderRight,
-      rect.bottom - renderStyle.borderBottom
+      rect.left + renderStyle.effectiveBorderLeftWidth.computedValue,
+      rect.top + renderStyle.effectiveBorderTopWidth.computedValue,
+      rect.right - renderStyle.effectiveBorderRightWidth.computedValue,
+      rect.bottom - renderStyle.effectiveBorderBottomWidth.computedValue
     );
 
     Path paddingBoxPath;
-    if (_decoration.borderRadius == null) {
+    if (!_decoration.hasBorderRadius) {
       paddingBoxPath = Path()..addRect(paddingBoxRect);
     } else {
-      RRect borderBoxRRect = _decoration.borderRadius!.resolve(textDirection).toRRect(rect);
+      RRect borderBoxRRect = _decoration.borderRadius!.toRRect(rect);
       // A borderRadius can only be given for a uniform Border in Flutter.
       // https://github.com/flutter/flutter/issues/12583
-      double uniformBorderWidth = renderStyle.borderTop;
+      double uniformBorderWidth = renderStyle.effectiveBorderTopWidth.computedValue;
       RRect paddingBoxRRect = borderBoxRRect.deflate(uniformBorderWidth);
       paddingBoxPath = Path()..addRRect(paddingBoxRRect);
     }
@@ -179,9 +179,10 @@ class BoxDecorationPainter extends BoxPainter {
     Rect shadowOffsetRect = paddingBoxRect
       .shift(Offset(boxShadow.offset.dx, boxShadow.offset.dy))
       .deflate(boxShadow.spreadRadius);
-    Path shadowOffsetPath = _decoration.borderRadius == null ?
-      (Path()..addRect(shadowOffsetRect)) :
-      (Path()..addRRect(_decoration.borderRadius!.resolve(textDirection).toRRect(shadowOffsetRect)));
+    Path shadowOffsetPath = _decoration.hasBorderRadius ?
+      (Path()..addRRect(_decoration.borderRadius!.toRRect(shadowOffsetRect))) :
+      (Path()..addRect(shadowOffsetRect));
+
     Path innerShadowPath = Path.combine(PathOperation.difference, paddingBoxPath, shadowOffsetPath);
 
     // 2. Create shadow rect in four directions and get the difference path
@@ -256,9 +257,9 @@ class BoxDecorationPainter extends BoxPainter {
       offsetRect = paddingBoxRect
         .shift(Offset(boxShadow.offset.dx, paddingBoxSize.height + boxShadow.offset.dy - boxShadow.spreadRadius));
     }
-    Path offsetRectPath = _decoration.borderRadius == null ?
-      (Path()..addRect(offsetRect)) :
-      (Path()..addRRect(_decoration.borderRadius!.resolve(textDirection).toRRect(offsetRect)));
+    Path offsetRectPath = _decoration.hasBorderRadius ?
+      (Path()..addRRect(_decoration.borderRadius!.toRRect(offsetRect))) :
+      (Path()..addRect(offsetRect));
 
     Path outerBorderPath = Path.combine(PathOperation.difference, offsetRectPath, paddingBoxPath);
     return outerBorderPath;
@@ -289,11 +290,9 @@ class BoxDecorationPainter extends BoxPainter {
   void _paintBackgroundImage(
     Canvas canvas, Rect rect, ImageConfiguration configuration) {
     if (_decoration.image == null) return;
-    _imagePainter = BoxDecorationImagePainter._(
+    _imagePainter ??= BoxDecorationImagePainter._(
       _decoration.image!,
-      renderStyle.backgroundPositionX,
-      renderStyle.backgroundPositionY,
-      renderStyle.backgroundSize,
+      renderStyle,
       onChanged!
     );
     Path? clipPath;
@@ -302,11 +301,9 @@ class BoxDecorationPainter extends BoxPainter {
         clipPath = Path()..addOval(rect);
         break;
       case BoxShape.rectangle:
-        if (_decoration.borderRadius != null)
+        if (_decoration.hasBorderRadius)
           clipPath = Path()
-            ..addRRect(_decoration.borderRadius!
-              .resolve(configuration.textDirection)
-              .toRRect(rect));
+            ..addRRect(_decoration.borderRadius!.toRRect(rect));
         break;
     }
     _imagePainter!.paint(canvas, rect, clipPath, configuration);
@@ -318,18 +315,18 @@ class BoxDecorationPainter extends BoxPainter {
     super.dispose();
   }
 
-  bool hasLocalBackgroundImage(RenderStyle renderStyle) {
+  bool _hasLocalBackgroundImage() {
     return renderStyle.backgroundImage != null &&
-      renderStyle.backgroundAttachment == LOCAL;
+      renderStyle.backgroundAttachment == CSSBackgroundAttachmentType.local;
   }
 
   void paintBackground(
     Canvas canvas, Offset offset, ImageConfiguration configuration) {
     assert(configuration.size != null);
-    Offset baseOffset = Offset(0, 0);
+    Offset baseOffset = Offset.zero;
 
     final TextDirection? textDirection = configuration.textDirection;
-    bool hasLocalAttachment = hasLocalBackgroundImage(renderStyle);
+    bool hasLocalAttachment = _hasLocalBackgroundImage();
 
     // Rect of background color
     Rect backgroundColorRect =
@@ -337,12 +334,12 @@ class BoxDecorationPainter extends BoxPainter {
     _paintBackgroundColor(canvas, backgroundColorRect, textDirection);
 
     // Background image of background-attachment local scroll with content
-    Offset backgrundImageOffset = hasLocalAttachment ? offset : baseOffset;
+    Offset backgroundImageOffset = hasLocalAttachment ? offset : baseOffset;
     // Rect of background image
     Rect backgroundClipRect =
-    _getBackgroundClipRect(backgrundImageOffset, configuration);
+    _getBackgroundClipRect(backgroundImageOffset, configuration);
     Rect backgroundOriginRect =
-    _getBackgroundOriginRect(backgrundImageOffset, configuration);
+    _getBackgroundOriginRect(backgroundImageOffset, configuration);
     Rect backgroundImageRect =
     backgroundClipRect.intersect(backgroundOriginRect);
     _paintBackgroundImage(canvas, backgroundImageRect, configuration);
@@ -352,13 +349,9 @@ class BoxDecorationPainter extends BoxPainter {
     Offset offset, ImageConfiguration configuration) {
     Size? size = configuration.size;
 
-    EdgeInsets? borderEdge = renderStyle.borderEdge;
-    double borderTop = 0;
-    double borderLeft = 0;
-    if (borderEdge != null) {
-      borderTop = borderEdge.top;
-      borderLeft = borderEdge.left;
-    }
+    EdgeInsets borderEdge = renderStyle.border;
+    double borderTop = borderEdge.top;
+    double borderLeft = borderEdge.left;
 
     double paddingTop = 0;
     double paddingLeft = 0;
@@ -387,17 +380,11 @@ class BoxDecorationPainter extends BoxPainter {
 
   Rect _getBackgroundClipRect(Offset offset, ImageConfiguration configuration) {
     Size? size = configuration.size;
-    double borderTop = 0;
-    double borderBottom = 0;
-    double borderLeft = 0;
-    double borderRight = 0;
-    EdgeInsets? borderEdge = renderStyle.borderEdge;
-    if (borderEdge != null) {
-      borderTop = borderEdge.top;
-      borderBottom = borderEdge.bottom;
-      borderLeft = borderEdge.left;
-      borderRight = borderEdge.right;
-    }
+    EdgeInsets borderEdge = renderStyle.border;
+    double borderTop = borderEdge.top;
+    double borderBottom = borderEdge.bottom;
+    double borderLeft = borderEdge.left;
+    double borderRight = borderEdge.right;
 
     double paddingTop = 0;
     double paddingBottom = 0;
@@ -450,7 +437,7 @@ class BoxDecorationPainter extends BoxPainter {
     final Rect rect = offset & configuration.size!;
     final TextDirection? textDirection = configuration.textDirection;
 
-    bool hasLocalAttachment = hasLocalBackgroundImage(renderStyle);
+    bool hasLocalAttachment = _hasLocalBackgroundImage();
     if (!hasLocalAttachment) {
       Rect backgroundClipRect = _getBackgroundClipRect(offset, configuration);
       _paintBackgroundColor(canvas, backgroundClipRect, textDirection);
@@ -467,7 +454,7 @@ class BoxDecorationPainter extends BoxPainter {
       canvas,
       rect,
       shape: _decoration.shape,
-      borderRadius: _decoration.borderRadius as BorderRadius?,
+      borderRadius: _decoration.borderRadius,
       textDirection: configuration.textDirection,
     );
 
@@ -475,9 +462,7 @@ class BoxDecorationPainter extends BoxPainter {
   }
 
   @override
-  String toString() {
-    return 'BoxPainter for $_decoration';
-  }
+  String toString() => 'BoxPainter for $_decoration';
 }
 
 /// Forked from flutter of [DecorationImagePainter] Class.
@@ -485,16 +470,21 @@ class BoxDecorationPainter extends BoxPainter {
 class BoxDecorationImagePainter {
   BoxDecorationImagePainter._(
     this._details,
-    this._backgroundPositionX,
-    this._backgroundPositionY,
-    this._backgroundSize,
+    this._renderStyle,
     this._onChanged
   );
 
+  final CSSRenderStyle _renderStyle;
   final DecorationImage _details;
-  final CSSBackgroundPosition _backgroundPositionX;
-  final CSSBackgroundPosition _backgroundPositionY;
-  final CSSBackgroundSize _backgroundSize;
+  CSSBackgroundPosition get _backgroundPositionX {
+    return _renderStyle.backgroundPositionX;
+  }
+  CSSBackgroundPosition get _backgroundPositionY {
+    return _renderStyle.backgroundPositionY;
+  }
+  CSSBackgroundSize get _backgroundSize {
+    return _renderStyle.backgroundSize;
+  }
   final VoidCallback _onChanged;
 
   ImageStream? _imageStream;
@@ -649,33 +639,31 @@ void _paintImage({
   Size sourceSize = inputSize;
   Size destinationSize = outputSize;
 
-  dynamic backgroundWidth = backgroundSize.width;
-  dynamic backgroundHeight = backgroundSize.height;
+  CSSLengthValue? backgroundWidth = backgroundSize.width;
+  CSSLengthValue? backgroundHeight = backgroundSize.height;
 
   // Only background width is set, eg `100px`, `100px auto`.
-  if (backgroundWidth != null && backgroundWidth != AUTO &&
-    (backgroundHeight == null || backgroundHeight == AUTO)
+  if (backgroundWidth != null && !backgroundWidth.isAuto && backgroundWidth.computedValue > 0 &&
+    (backgroundHeight == null || backgroundHeight.isAuto)
   ) {
-    double width = backgroundWidth! is String && CSSLength.isPercentage(backgroundWidth!) ?
-      CSSLength.parsePercentage(backgroundWidth!) * outputSize.width : backgroundWidth;
+    double width = backgroundWidth.computedValue;
     double height = width / aspectRatio;
     destinationSize = Size(width, height);
 
   // Only background height is set, eg `auto 100px`.
-  } else if (backgroundWidth == AUTO && backgroundHeight != null && backgroundHeight != AUTO) {
-    double height = backgroundHeight! is String && CSSLength.isPercentage(backgroundHeight!) ?
-      CSSLength.parsePercentage(backgroundHeight!) * outputSize.height : backgroundHeight;
+  } else if (backgroundWidth != null && backgroundWidth.isAuto &&
+    backgroundHeight != null && !backgroundHeight.isAuto && backgroundHeight.computedValue > 0
+  ) {
+    double height = backgroundHeight.computedValue;
     double width = height * aspectRatio;
     destinationSize = Size(width, height);
 
   // Both background width and height are set, eg `100px 100px`.
-  } else if (backgroundWidth != null && backgroundWidth != AUTO &&
-    backgroundHeight != null && backgroundHeight != AUTO
+  } else if (backgroundWidth != null && !backgroundWidth.isAuto && backgroundWidth.computedValue > 0 &&
+    backgroundHeight != null && !backgroundHeight.isAuto && backgroundHeight.computedValue > 0
   ) {
-    double width = backgroundWidth! is String && CSSLength.isPercentage(backgroundWidth!) ?
-      CSSLength.parsePercentage(backgroundWidth!) * outputSize.width : backgroundWidth;
-    double height = backgroundHeight! is String && CSSLength.isPercentage(backgroundHeight!) ?
-      CSSLength.parsePercentage(backgroundHeight!) * outputSize.height : backgroundHeight;
+    double width = backgroundWidth.computedValue;
+    double height = backgroundHeight.computedValue;
     destinationSize = Size(width, height);
 
   // Keyword values are set(contain|cover|auto), eg `contain`, `auto auto`.
@@ -707,9 +695,9 @@ void _paintImage({
   final double halfHeightDelta = (outputSize.height - destinationSize.height) / 2.0;
 
   // Use position as length type if specified in positionX/ positionY, otherwise use as percentage type.
-  final double dx = positionX.length != null ? positionX.length! :
+  final double dx = positionX.length != null ? positionX.length!.computedValue :
   halfWidthDelta + (flipHorizontally ? -positionX.percentage! : positionX.percentage!) * halfWidthDelta;
-  final double dy = positionY.length != null ? positionY.length! :
+  final double dy = positionY.length != null ? positionY.length!.computedValue :
   halfHeightDelta + positionY.percentage! * halfHeightDelta;
 
   final Offset destinationPosition = rect.topLeft.translate(dx, dy);
@@ -853,4 +841,3 @@ Iterable<Rect> _generateImageTileRects(Rect outputRect, Rect fundamentalRect, Im
 // Forked from flutter with no modification:
 // https://github.com/flutter/flutter/blob/master/packages/flutter/lib/src/painting/decoration_image.dart#L621
 Rect _scaleRect(Rect rect, double scale) => Rect.fromLTRB(rect.left * scale, rect.top * scale, rect.right * scale, rect.bottom * scale);
-

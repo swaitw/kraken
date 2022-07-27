@@ -8,7 +8,7 @@ describe('TouchEvent', () => {
 
     div.addEventListener('touchstart', e => {
       done();
-    })
+    });
 
     simulateSwipe(0, 0, 100, 100, 0.5);
   });
@@ -22,7 +22,7 @@ describe('TouchEvent', () => {
 
     div.addEventListener('touchend', e => {
       done();
-    })
+    });
 
     simulateSwipe(0, 0, 100, 100, 0.5);
   });
@@ -36,7 +36,7 @@ describe('TouchEvent', () => {
 
     div.addEventListener('touchmove', e => {
       done();
-    })
+    });
     simulateSwipe(0, 0, 100, 100, 0.5);
   });
 
@@ -77,16 +77,16 @@ describe('TouchEvent', () => {
     const func = async (e: TouchEvent) => {
       expect(e.touches.length).toBe(2);
       div.removeEventListener('touchend', func);
-      await simulatePoinrUp(20, 20);
+      await simulatePointUp(20, 20);
       done();
-    }
+    };
 
     div.addEventListener('touchend', func);
 
     document.body.appendChild(div);
 
     await simulatePointDown(20, 20);
-    
+
     await simulateClick(10, 10, 1);
   });
 
@@ -107,16 +107,16 @@ describe('TouchEvent', () => {
 
     const func = async (e: TouchEvent) => {
       expect(e.targetTouches.length).toBe(1);
-      await simulatePoinrUp(20, 20);
+      await simulatePointUp(20, 20);
       div2.removeEventListener('touchend', func);
       done();
-    }
+    };
 
     div2.addEventListener('touchend', func);
 
     await simulatePointDown(20, 20);
-    
-    await simulateClick(5, 5 , 1);
+
+    await simulateClick(5, 5, 1);
   });
 
   it('touchend should work with changedTouches', async (done) => {
@@ -129,12 +129,12 @@ describe('TouchEvent', () => {
       expect(e.changedTouches.length).toBe(1);
       div.removeEventListener('touchend', func);
       done();
-    }
+    };
 
     div.addEventListener('touchend', func)
 
     document.body.appendChild(div);
-    
+
     await simulateClick(10, 10);
   });
 
@@ -148,12 +148,12 @@ describe('TouchEvent', () => {
       expect(e.changedTouches.length).toBe(1);
       div.removeEventListener('touchstart', func);
       done();
-    }
+    };
 
     div.addEventListener('touchstart', func)
 
     document.body.appendChild(div);
-    
+
     await simulateClick(10, 10);
   });
 
@@ -167,12 +167,30 @@ describe('TouchEvent', () => {
       expect(e.changedTouches.length).toBe(1);
       div.removeEventListener('touchmove', func);
       done();
-    }
+    };
 
     div.addEventListener('touchmove', func)
 
     document.body.appendChild(div);
-    
+
     await simulateSwipe(0, 0, 0, 100, 0.5);
+  });
+
+  it('touchmove should work on body when element with position', async (done) => {
+    const div = document.createElement('div');
+    div.style.width = '100px';
+    div.style.height = '100px';
+    div.style.backgroundColor = 'red';
+    div.style.position = 'fixed';
+    document.body.appendChild(div);
+
+    document.body.addEventListener('touchmove', function callback() {
+      document.body.removeEventListener('touchmove', callback);
+      done();
+    });
+
+    requestAnimationFrame(() => {
+      simulateSwipe(10, 10, 10, 100, 0.5);
+    });
   });
 });

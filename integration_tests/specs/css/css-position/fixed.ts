@@ -58,10 +58,10 @@ describe('Position fixed', () => {
     );
 
     BODY.appendChild(container);
-    await snapshot(0.1);
+    await snapshot();
 
     container.scroll(0, 200);
-    await snapshot(0.1);
+    await snapshot();
 
   });
 
@@ -96,14 +96,14 @@ describe('Position fixed', () => {
     );
 
     BODY.appendChild(container);
-    await snapshot(0.1);
+    await snapshot();
 
     window.scroll(0, 200);
-    await snapshot(0.1);
+    await snapshot();
 
   });
-  // FIXME: Current scroll in horizontal axis is not work in viewport
-  xit('works with single frame image in window scroll', async () => {
+
+  it('works with single frame image in window scroll', async () => {
     let container = createElement('div',
       {
         style: {
@@ -136,10 +136,9 @@ describe('Position fixed', () => {
     );
 
     BODY.appendChild(container);
-    await snapshot(0.5);
 
     window.scroll(100, 200);
-    await snapshot(0.1);
+    await snapshot();
   });
 
   it('hitTest with position fixed elements', async () => {
@@ -186,7 +185,7 @@ describe('Position fixed', () => {
 
     await simulateClick(10, 10);
 
-    await sleep(0.1);
+
     expect(clickCount).toBe(2);
 
   });
@@ -258,10 +257,10 @@ describe('Position fixed', () => {
       ]
     );
     append(BODY, cont);
-    await snapshot(0.1);
+    await snapshot();
 
     cont.style.position = 'static';
-    await snapshot(0.1);
+    await snapshot();
   });
 
   it('change from fixed to static and no transform exists', async () => {
@@ -282,9 +281,301 @@ describe('Position fixed', () => {
       ]
     );
     append(BODY, cont);
-    await snapshot(0.1);
+    await snapshot();
 
     cont.style.position = 'static';
-    await snapshot(0.1);
+    await snapshot();
+  });
+
+  it('should work with parent zIndex of parent fixed element larger than zIndex of child fixed element', async () => {
+    let div;
+    div = createElement(
+      'div',
+      {
+        style: {
+          position: 'fixed',
+          width: '200px',
+          height: '200px',
+          background: 'yellow',
+          zIndex: 1000,
+        },
+      },
+      [
+        createElement('div', {
+          style: {
+            position: 'fixed',
+            width: '100px',
+            height: '100px',
+            'background-color': 'green',
+            zIndex: 100,
+          },
+        }),
+      ]
+    );
+
+    document.body.appendChild(div);
+
+    await snapshot();
+  });
+
+  it('should work with parent zIndex of parent fixed element larger than zIndex of child fixed element in nested container', async () => {
+    let div;
+    div = createElement('div', {
+       style: {
+       }
+    }, [
+      createElement(
+        'div',
+        {
+            style: {
+            position: 'fixed',
+            width: '200px',
+            height: '200px',
+            background: 'yellow',
+            zIndex: 1000,
+            },
+        },
+        [
+            createElement('div', {
+            style: {
+                position: 'fixed',
+                width: '100px',
+                height: '100px',
+                display: 'flex',
+                'background-color': 'green',
+                zIndex: 100,
+            },
+            }),
+        ]
+      )
+    ]);
+
+    document.body.appendChild(div);
+
+    await snapshot();
+  });
+
+  it('should work with zIndex of parent fixed element smaller than zIndex of child fixed element in nested container', async () => {
+    let div;
+    div = createElement('div', {
+      style: {
+      }
+    }, [
+      createElement(
+        'div',
+        {
+          style: {
+          position: 'fixed',
+          width: '200px',
+          height: '200px',
+          background: 'yellow',
+          zIndex: 100,
+          },
+        },
+        [
+          createElement('div', {
+            style: {
+              position: 'fixed',
+              width: '100px',
+              height: '100px',
+              display: 'flex',
+              'background-color': 'green',
+              zIndex: 1000,
+            },
+          }),
+        ]
+      )
+    ]);
+
+    document.body.appendChild(div);
+
+    await snapshot();
+  });
+
+  it('should work with zIndex of previous fixed element smaller than zIndex of next fixed element', async () => {
+    let div;
+    div = createElement('div', {
+       style: {
+       }
+    }, [
+      createElement(
+        'div',
+        {
+          style: {
+            position: 'fixed',
+            width: '200px',
+            height: '100px',
+            background: 'yellow',
+            zIndex: 100,
+          },
+        },
+      ),
+      createElement(
+        'div', 
+        {
+          style: {
+            position: 'fixed',
+            width: '100px',
+            height: '200px',
+            display: 'flex',
+            'background-color': 'green',
+            zIndex: 1000,
+          },
+      }),
+    ]);
+
+    document.body.appendChild(div);
+
+    await snapshot();
+  });
+
+  it('should work with zIndex of previous fixed element larger than zIndex of next fixed element', async () => {
+    let div;
+    div = createElement('div', {
+      style: {
+      }
+    }, [
+      createElement(
+        'div',
+        {
+          style: {
+            position: 'fixed',
+            width: '200px',
+            height: '100px',
+            background: 'yellow',
+            zIndex: 1000,
+          },
+        },
+      ),
+      createElement(
+        'div', 
+        {
+          style: {
+            position: 'fixed',
+            width: '100px',
+            height: '200px',
+            display: 'flex',
+            'background-color': 'green',
+            zIndex: 100,
+          },
+      }),
+    ]);
+
+    document.body.appendChild(div);
+
+    await snapshot();
+  });
+
+  it('should work with percentage offset', async () => {
+    let div1 = createElement(
+      'div',
+      {
+        style: {
+          position: 'fixed',
+          top: '50%',
+          left: '50%',
+          width: '100px',
+          height: '100px',
+          backgroundColor: 'green'
+       },
+      });
+    
+    BODY.appendChild(div1);
+    await snapshot();
+  });
+
+  it('should work with top and left offset when appended after window scrolled', async (done) => {
+    let div1 = createElement('div', {
+      style: {
+        margin: '20px',
+        background: 'yellow', 
+        height: '500px', 
+        width: '500px',
+      }
+    }, [
+      createText('111')
+    ]);
+    let div2 = createElement('div', {
+      style: {
+        margin: '20px',
+        background: 'green', 
+        height: '500px',
+        width: '500px', 
+      }
+    }, [
+      createText('222')
+    ]);
+    let fixed = createElement('div', {
+      style: {
+        position: 'fixed', 
+        background: 'blue', 
+        width: '100px',
+        height: '100px', 
+        top: '50px',
+        left: '50px',
+        }
+      }, [
+    ]);
+    document.body.appendChild(div1);
+    document.body.appendChild(div2);
+
+    window.scrollBy(500, 500);
+
+    requestAnimationFrame(async () => {
+      document.body.appendChild(fixed);
+      await snapshot();
+      requestAnimationFrame(async () => {
+        window.scrollBy(-500, -500);
+        await snapshot();
+        done();
+      });
+    });
+  });
+
+  it('should work with right and bottom offset when appended after window scrolled', async (done) => {
+    let div1 = createElement('div', {
+      style: {
+        margin: '20px',
+        background: 'yellow', 
+        height: '500px', 
+        width: '500px',
+      }
+    }, [
+      createText('111')
+    ]);
+    let div2 = createElement('div', {
+      style: {
+        margin: '20px',
+        background: 'green', 
+        height: '500px',
+        width: '500px', 
+      }
+    }, [
+      createText('222')
+    ]);
+    let fixed = createElement('div', {
+      style: {
+        position: 'fixed', 
+        background: 'blue', 
+        width: '100px',
+        height: '100px', 
+        right: '50px',
+        bottom: '50px',
+      }
+    });
+    document.body.appendChild(div1);
+    document.body.appendChild(div2);
+
+    window.scrollBy(500, 500);
+
+    requestAnimationFrame(async () => {
+      document.body.appendChild(fixed);
+      await snapshot();
+      requestAnimationFrame(async () => {
+        window.scrollBy(-500, -500);
+        await snapshot();
+        done();
+      });
+    });
   });
 });

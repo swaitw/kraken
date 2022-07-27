@@ -1,18 +1,17 @@
 /*
- * Copyright (C) 2019 Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
  */
 
 #include "dart_methods.h"
-#include "kraken_bridge.h"
 #include <memory>
+#include "kraken_bridge.h"
 
 namespace kraken {
 
 std::shared_ptr<DartMethodPointer> methodPointer = std::make_shared<DartMethodPointer>();
 
 std::shared_ptr<DartMethodPointer> getDartMethod() {
-  std::__thread_id currentThread = std::this_thread::get_id();
+  std::thread::id currentThread = std::this_thread::get_id();
 
 #ifndef NDEBUG
   // Dart methods can only invoked from Flutter UI threads. Javascript Debugger like Safari Debugger can invoke
@@ -27,7 +26,7 @@ std::shared_ptr<DartMethodPointer> getDartMethod() {
   return methodPointer;
 }
 
-void registerDartMethods(uint64_t *methodBytes, int32_t length) {
+void registerDartMethods(uint64_t* methodBytes, int32_t length) {
   size_t i = 0;
 
   methodPointer->invokeModule = reinterpret_cast<InvokeModule>(methodBytes[i++]);
@@ -39,11 +38,8 @@ void registerDartMethods(uint64_t *methodBytes, int32_t length) {
   methodPointer->requestAnimationFrame = reinterpret_cast<RequestAnimationFrame>(methodBytes[i++]);
   methodPointer->cancelAnimationFrame = reinterpret_cast<CancelAnimationFrame>(methodBytes[i++]);
   methodPointer->getScreen = reinterpret_cast<GetScreen>(methodBytes[i++]);
-  methodPointer->devicePixelRatio = reinterpret_cast<DevicePixelRatio>(methodBytes[i++]);
-  methodPointer->platformBrightness = reinterpret_cast<PlatformBrightness>(methodBytes[i++]);
   methodPointer->toBlob = reinterpret_cast<ToBlob>(methodBytes[i++]);
   methodPointer->flushUICommand = reinterpret_cast<FlushUICommand>(methodBytes[i++]);
-  methodPointer->initHTML = reinterpret_cast<InitHTML>(methodBytes[i++]);
   methodPointer->initWindow = reinterpret_cast<InitWindow>(methodBytes[i++]);
   methodPointer->initDocument = reinterpret_cast<InitDocument>(methodBytes[i++]);
 
@@ -54,12 +50,12 @@ void registerDartMethods(uint64_t *methodBytes, int32_t length) {
 #endif
 
   methodPointer->onJsError = reinterpret_cast<OnJSError>(methodBytes[i++]);
+  methodPointer->onJsLog = reinterpret_cast<OnJSLog>(methodBytes[i++]);
 
   assert_m(i == length, "Dart native methods count is not equal with C++ side method registrations.");
 }
 
-
-void registerTestEnvDartMethods(uint64_t *methodBytes, int32_t length) {
+void registerTestEnvDartMethods(uint64_t* methodBytes, int32_t length) {
   size_t i = 0;
 
   methodPointer->onJsError = reinterpret_cast<OnJSError>(methodBytes[i++]);
@@ -77,4 +73,4 @@ void registerGetPerformanceEntries(GetPerformanceEntries getPerformanceEntries) 
 }
 #endif
 
-} // namespace kraken
+}  // namespace kraken

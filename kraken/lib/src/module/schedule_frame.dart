@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2021-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
  */
 
 
@@ -37,7 +36,7 @@ mixin ScheduleFrameMixin {
     SchedulerBinding.instance!.scheduleFrame();
   }
 
-  void clearAnimationFrame() {
+  void disposeScheduleFrame() {
     _animationFrameCallbackMap.clear();
   }
 }

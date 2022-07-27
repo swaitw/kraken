@@ -10,6 +10,7 @@ import '../../local_http_server.dart';
 void main() {
   var server = LocalHttpServer.getInstance();
   int contextId = 1;
+  HttpOverrides.global = null;
   setupHttpOverrides(null, contextId: contextId);
   HttpClient httpClient = HttpClient();
 
@@ -50,7 +51,7 @@ void main() {
       var res = await req.close();
       expect(String.fromCharCodes(await consolidateHttpClientResponseBytes(res)), 'CachedData');
 
-      HttpCacheController cacheController = HttpCacheController.instance(req.headers.value('origin')!);
+      HttpCacheController cacheController = HttpCacheController.instance('local');
       var cacheObject = await cacheController.getCacheObject(req.uri);
       await cacheObject.read();
 
@@ -80,7 +81,7 @@ void main() {
       expect(res2.headers.value(HttpHeaders.lastModifiedHeader), httpDateNow);
 
       // Check cache object updated.
-      HttpCacheController cacheController = HttpCacheController.instance(req.headers.value('origin')!);
+      HttpCacheController cacheController = HttpCacheController.instance('local');
       var cacheObject = await cacheController.getCacheObject(req.uri);
       assert(cacheObject.lastModified != null);
       // Difference <= 1ms.
@@ -97,7 +98,7 @@ void main() {
       var res = await req.close();
       expect(String.fromCharCodes(await consolidateHttpClientResponseBytes(res)), 'CachedData');
 
-      HttpCacheController cacheController = HttpCacheController.instance(req.headers.value('origin')!);
+      HttpCacheController cacheController = HttpCacheController.instance('local');
       var cacheObject = await cacheController.getCacheObject(req.uri);
       await cacheObject.read();
 
@@ -164,7 +165,7 @@ void main() {
       expect(bytes.lengthInBytes, res.contentLength);
 
       // Assert cache object.
-      HttpCacheController cacheController = HttpCacheController.instance(req.headers.value('origin')!);
+      HttpCacheController cacheController = HttpCacheController.instance('local');
       var cacheObject = await cacheController.getCacheObject(req.uri);
       await cacheObject.read();
       assert(cacheObject.valid);
@@ -186,7 +187,7 @@ void main() {
       expect(String.fromCharCodes(await consolidateHttpClientResponseBytes(res)), 'CachedData');
 
       // Assert cache object.
-      HttpCacheController cacheController = HttpCacheController.instance(req.headers.value('origin')!);
+      HttpCacheController cacheController = HttpCacheController.instance('local');
       var cacheObject = await cacheController.getCacheObject(req.uri);
       await cacheObject.read();
       assert(cacheObject.valid);
@@ -195,6 +196,37 @@ void main() {
       assert(response != null);
       expect(response!.headers.value('cache-hits'), 'HIT');
       expect(response.headers.value('x-custom-header'), 'hello-world');
+    });
+
+    test('Work with followRedirects: false', () async {
+      var req = await httpClient.openUrl('GET',
+          server.getUri('301'));
+      req.followRedirects = false;
+      var res = await req.close();
+
+      expect(res.statusCode, 301);
+    });
+
+    test('Handle gzipped content', () async {
+      // First request to save cache.
+      var req = await httpClient.openUrl('GET',
+          server.getUri('js_gzipped'));
+      KrakenHttpOverrides.setContextHeader(req.headers, contextId);
+      var res = await req.close();
+      expect(String.fromCharCodes(await consolidateHttpClientResponseBytes(res))[0], '!');
+
+      // Assert cache object.
+      HttpCacheController cacheController = HttpCacheController.instance('local');
+      var cacheObject = await cacheController.getCacheObject(req.uri);
+      assert(cacheObject.valid);
+
+      var response = await cacheObject.toHttpClientResponse(httpClient);
+      assert(response != null);
+
+      var bytes = await consolidateHttpClientResponseBytes(response!);
+      String content = await resolveStringFromData(bytes);
+      expect(response.headers.value('content-encoding'), 'gzip');
+      expect(content.length, 18538);
     });
   });
 }

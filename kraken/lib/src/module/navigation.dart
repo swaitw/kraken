@@ -1,3 +1,6 @@
+/*
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
+ */
 import 'module_manager.dart';
 
 typedef KrakenNavigationDecisionHandler = Future<KrakenNavigationActionPolicy> Function(KrakenNavigationAction action);
@@ -38,18 +41,16 @@ class NavigationModule extends BaseModule {
 
   // Navigate kraken page to target Url.
   Future<void> goTo(String targetUrl) async {
-    String? sourceUrl = moduleManager!.controller.bundlePath ?? moduleManager!.controller.bundleURL;
+    String? sourceUrl = moduleManager!.controller.url;
 
     Uri targetUri = Uri.parse(targetUrl);
-    Uri? sourceUri = sourceUrl != null ? Uri.parse(sourceUrl) : null;
+    Uri sourceUri = Uri.parse(sourceUrl);
 
-    if (sourceUri == null || targetUri != sourceUri) {
-      await moduleManager!.controller.view.handleNavigationAction(sourceUrl, targetUrl, KrakenNavigationType.reload);
-    }
+    await moduleManager!.controller.view.handleNavigationAction(sourceUrl, targetUrl, targetUri == sourceUri ? KrakenNavigationType.reload : KrakenNavigationType.navigate);
   }
 
   @override
-  String invoke(String method, dynamic params, callback) {
+  String invoke(String method, params, callback) {
     if (method == 'goTo') {
       assert(params is String, 'URL must be string.');
       goTo(params);

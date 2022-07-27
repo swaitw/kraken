@@ -1,19 +1,16 @@
 /*
- * Copyright (C) 2019-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
  */
-
-
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:async';
 
 import 'package:kraken/dom.dart';
 import 'package:kraken/kraken.dart';
-import 'package:kraken/module.dart';
 
 class HistoryItem {
-  HistoryItem(this.href, this.state, this.needJump);
-  final String href;
+  HistoryItem(this.bundle, this.state, this.needJump);
+  final KrakenBundle bundle;
   final dynamic state;
   final bool needJump;
 }
@@ -22,22 +19,26 @@ class HistoryModule extends BaseModule {
   @override
   String get name => 'History';
 
-  final Queue<HistoryItem> _previousStack = Queue();
-  final Queue<HistoryItem> _nextStack = Queue();
-
   HistoryModule(ModuleManager? moduleManager) : super(moduleManager);
 
-  String get href {
-    if (_previousStack.isEmpty) return '';
-    return _previousStack.first.href;
+  Queue<HistoryItem> get _previousStack => moduleManager!.controller.previousHistoryStack;
+  Queue<HistoryItem> get _nextStack => moduleManager!.controller.nextHistoryStack;
+
+  KrakenBundle? get stackTop {
+    if (_previousStack.isEmpty) {
+      return null;
+    } else {
+      return _previousStack.first.bundle;
+    }
   }
-  set href(String value) {
-    HistoryItem history = HistoryItem(value, null, true);
+
+  void add(KrakenBundle bundle) {
+    HistoryItem history = HistoryItem(bundle, null, true);
     _addItem(history);
   }
 
   void _addItem(HistoryItem historyItem) {
-    if (_previousStack.isNotEmpty && historyItem.href == _previousStack.first.href) return;
+    if (_previousStack.isNotEmpty && historyItem.bundle.url == _previousStack.first.bundle.url) return;
 
     _previousStack.addFirst(historyItem);
 
@@ -54,7 +55,7 @@ class HistoryModule extends BaseModule {
       _previousStack.removeFirst();
       _nextStack.addFirst(currentItem);
 
-      await _goTo(_previousStack.first.href);
+      await _goTo(_previousStack.first.bundle.url);
 
       dynamic state = _previousStack.first.state;
       _dispatchPopStateEvent(state);
@@ -67,7 +68,7 @@ class HistoryModule extends BaseModule {
       _nextStack.removeFirst();
       _previousStack.addFirst(currentItem);
 
-      _goTo(currentItem.href);
+      _goTo(currentItem.bundle.url);
       _dispatchPopStateEvent(currentItem.state);
     }
   }
@@ -96,7 +97,7 @@ class HistoryModule extends BaseModule {
       }
     }
 
-    _goTo(_previousStack.first.href);
+    _goTo(_previousStack.first.bundle.url);
     _dispatchPopStateEvent(_previousStack.first.state);
   }
 
@@ -105,10 +106,10 @@ class HistoryModule extends BaseModule {
     await navigationModule.goTo(targetUrl);
   }
 
-  void _dispatchPopStateEvent(dynamic state) {
+  void _dispatchPopStateEvent(state) {
     PopStateEventInit init = PopStateEventInit(state);
     PopStateEvent popStateEvent = PopStateEvent(init);
-    emitUIEvent(moduleManager!.contextId, moduleManager!.controller.view.window!.nativeEventTargetPtr, popStateEvent);
+    moduleManager!.controller.view.window.dispatchEvent(popStateEvent);
   }
 
   void _pushState(List<dynamic> params) {
@@ -119,11 +120,11 @@ class HistoryModule extends BaseModule {
     if (params[2] != null) {
       url = params[2];
 
-      String currentUrl = _previousStack.first.href;
+      String currentUrl = _previousStack.first.bundle.url;
       Uri currentUri = Uri.parse(currentUrl);
 
       Uri uri = Uri.parse(url!);
-      uri = controller.uriParser!.resolve(Uri.parse(controller.href), uri);
+      uri = controller.uriParser!.resolve(Uri.parse(controller.url), uri);
 
       if (uri.host.isNotEmpty && uri.host != currentUri.host) {
         print('Failed to execute \'pushState\' on \'History\': '
@@ -131,7 +132,8 @@ class HistoryModule extends BaseModule {
         return;
       }
 
-      HistoryItem history = HistoryItem(uri.toString(), state, false);
+      KrakenBundle bundle = KrakenBundle.fromUrl(uri.toString());
+      HistoryItem history = HistoryItem(bundle, state, false);
       _addItem(history);
     }
   }
@@ -144,11 +146,11 @@ class HistoryModule extends BaseModule {
     if (params[2] != null) {
       url = params[2];
 
-      String currentUrl = _previousStack.first.href;
+      String currentUrl = _previousStack.first.bundle.url;
       Uri currentUri = Uri.parse(currentUrl);
 
       Uri uri = Uri.parse(url!);
-      uri = controller.uriParser!.resolve(Uri.parse(controller.href), uri);
+      uri = controller.uriParser!.resolve(Uri.parse(controller.url), uri);
 
       if (uri.host.isNotEmpty && uri.host != currentUri.host) {
         print('Failed to execute \'pushState\' on \'History\': '
@@ -156,7 +158,8 @@ class HistoryModule extends BaseModule {
         return;
       }
 
-      HistoryItem history = HistoryItem(uri.toString(), state, false);
+      KrakenBundle bundle = KrakenBundle.fromUrl(uri.toString());
+      HistoryItem history = HistoryItem(bundle, state, false);
 
       _previousStack.removeFirst();
       _previousStack.addFirst(history);

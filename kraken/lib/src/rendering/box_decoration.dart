@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2019-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
  */
 
 import 'package:flutter/foundation.dart';
@@ -26,12 +25,6 @@ mixin RenderBoxDecorationMixin on RenderBoxModelBase {
   void disposePainter() {
     _painter?.dispose();
     _painter = null;
-    // Since we're disposing of our painter, we won't receive change
-    // notifications. We mark ourselves as needing paint so that we will
-    // resubscribe to change notifications. If we didn't do this, then, for
-    // example, animated GIFs would stop animating when a DecoratedBox gets
-    // moved around the tree due to GlobalKey reparenting.
-    markNeedsPaint();
   }
 
   void paintBackground(
@@ -42,7 +35,7 @@ mixin RenderBoxDecorationMixin on RenderBoxModelBase {
 
     if (decoration == null) return;
     _painter ??= BoxDecorationPainter(
-          decoration, padding, renderStyle, markNeedsPaint);
+          padding, renderStyle, markNeedsPaint);
 
     final ImageConfiguration filledConfiguration =
         imageConfiguration.copyWith(size: size);
@@ -80,14 +73,16 @@ mixin RenderBoxDecorationMixin on RenderBoxModelBase {
   }
 
   void paintDecoration(
-      PaintingContext context, Offset offset, EdgeInsets? padding) {
+      PaintingContext context, Offset offset, PaintingContextCallback callback) {
     CSSBoxDecoration? decoration = renderStyle.decoration;
     DecorationPosition decorationPosition = renderStyle.decorationPosition;
     ImageConfiguration imageConfiguration = renderStyle.imageConfiguration;
 
-    if (decoration == null) return;
+    if (decoration == null) return callback(context, offset);
+
+    EdgeInsets? padding = renderStyle.padding.resolve(TextDirection.ltr);
     _painter ??=
-        BoxDecorationPainter(decoration, padding, renderStyle, markNeedsPaint);
+        BoxDecorationPainter(padding, renderStyle, markNeedsPaint);
 
     final ImageConfiguration filledConfiguration =
         imageConfiguration.copyWith(size: size);
@@ -119,31 +114,28 @@ mixin RenderBoxDecorationMixin on RenderBoxModelBase {
       if (decoration.isComplex) context.setIsComplexHint();
     }
     Offset contentOffset;
-    EdgeInsets? borderEdge = renderStyle.borderEdge;
-    if (borderEdge == null) {
-      contentOffset = Offset(0, 0);
-    } else {
-      contentOffset = offset.translate(borderEdge.left, borderEdge.top);
-    }
+    EdgeInsets borderEdge = renderStyle.border;
+    contentOffset = offset.translate(borderEdge.left, borderEdge.top);
     super.paint(context, contentOffset);
     if (decorationPosition == DecorationPosition.foreground) {
       _painter!.paint(context.canvas, offset, filledConfiguration);
       if (decoration.isComplex) context.setIsComplexHint();
     }
+
+    callback(context, offset);
   }
 
   void debugBoxDecorationProperties(DiagnosticPropertiesBuilder properties) {
-    if (renderStyle.borderEdge != null)
-      properties
-          .add(DiagnosticsProperty('borderEdge', renderStyle.borderEdge));
+    properties
+        .add(DiagnosticsProperty('borderEdge', renderStyle.border));
     if (renderStyle.backgroundClip != null)
       properties.add(
           DiagnosticsProperty('backgroundClip', renderStyle.backgroundClip));
     if (renderStyle.backgroundOrigin != null)
       properties.add(DiagnosticsProperty(
           'backgroundOrigin', renderStyle.backgroundOrigin));
-    BoxDecoration? _decoration = renderStyle.decoration;
-    if (_decoration != null && _decoration.borderRadius != null)
+    CSSBoxDecoration? _decoration = renderStyle.decoration;
+    if (_decoration != null && _decoration.hasBorderRadius)
       properties
           .add(DiagnosticsProperty('borderRadius', _decoration.borderRadius));
     if (_decoration != null && _decoration.image != null)

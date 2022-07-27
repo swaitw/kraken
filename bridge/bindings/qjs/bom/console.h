@@ -1,17 +1,16 @@
 /*
- * Copyright (C) 2021 Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
  */
 
 #ifndef KRAKENBRIDGE_CONSOLE_H
 #define KRAKENBRIDGE_CONSOLE_H
 
-#include "bindings/qjs/js_context.h"
+#include "bindings/qjs/executing_context.h"
 
 namespace kraken::binding::qjs {
 
-void bindConsole(std::unique_ptr<JSContext> &context);
+void bindConsole(ExecutionContext* context);
 
 }
 
-#endif // KRAKENBRIDGE_CONSOLE_H
+#endif  // KRAKENBRIDGE_CONSOLE_H

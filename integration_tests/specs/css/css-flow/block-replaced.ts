@@ -142,7 +142,8 @@ describe('block-replaced', () => {
 
     await snapshot(0.1);
   });
-  xit('height-003', async () => {
+
+  it('height-003', async () => {
     let p;
     let div;
     p = createElement(
@@ -204,6 +205,7 @@ describe('block-replaced', () => {
 
     await snapshot(0.1);
   });
+
   it('height-004-ref', async () => {
     let p;
     let div;
@@ -236,7 +238,7 @@ describe('block-replaced', () => {
     BODY.appendChild(p);
     BODY.appendChild(div);
 
-    await snapshot(0.1);
+    await snapshot();
   });
   it('height-004', async () => {
     let p;
@@ -290,9 +292,9 @@ describe('block-replaced', () => {
     BODY.appendChild(p);
     BODY.appendChild(div);
 
-    await snapshot(0.1);
+    await snapshot();
   });
-  xit('height-005', async () => {
+  it('height-005', async () => {
     let p;
     let div1;
     p = createElement(
@@ -525,8 +527,9 @@ describe('block-replaced', () => {
     BODY.appendChild(p);
     BODY.appendChild(div);
 
-    await snapshot(0.1);
+    await snapshot();
   });
+  // @TODO: Support svg element.
   xit('width-002', async () => {
     let p;
     let div1;
@@ -607,6 +610,8 @@ describe('block-replaced', () => {
 
     await snapshot();
   });
+
+  // @TODO: Support svg element.
   xit('width-003', async () => {
     let p;
     let div1;
@@ -677,6 +682,8 @@ describe('block-replaced', () => {
 
     await snapshot();
   });
+
+  // @TODO: Support svg element.
   xit('width-004', async () => {
     let p;
     let div2;
@@ -836,7 +843,7 @@ describe('block-replaced', () => {
 
     await snapshot();
   });
-  xit('width-006', async () => {
+  it('width-006', async () => {
     let p;
     let child;
     let div1;
@@ -888,9 +895,9 @@ describe('block-replaced', () => {
         createElement('img', {
           alt: 'blue 15x15',
           src: 'assets/blue15x15.png',
-          width: '50%',
           style: {
             display: 'block',
+            width: '50%',
             'margin-left': 'auto',
             'margin-right': 'auto',
             'box-sizing': 'border-box',
@@ -913,6 +920,39 @@ describe('block-replaced', () => {
     );
     BODY.appendChild(p);
     BODY.appendChild(div1);
+
+    await snapshot(0.1);
+  });
+
+  it('width and height not work for non replaced element of display inline', async () => {
+    let div;
+
+    div = createElement('div', {
+      style: {
+        display: 'inline',
+        width: '100px',
+        height: '100px',
+        background: 'yellow'
+      },
+    });
+    BODY.appendChild(div);
+
+    await snapshot();
+  });
+
+  it('width and height works for replaced element of display inline', async () => {
+    let div;
+
+    div = createElement('img', {
+      src: 'assets/blue15x15.png',
+      style: {
+        display: 'inline',
+        width: '100px',
+        height: '100px',
+        background: 'yellow'
+      },
+    });
+    BODY.appendChild(div);
 
     await snapshot(0.1);
   });

@@ -1,19 +1,21 @@
+/*
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
+ */
 import 'dart:convert';
 
 import 'package:kraken/bridge.dart' as bridge;
 import 'package:kraken/dom.dart';
 import 'package:kraken/kraken.dart';
-import 'package:kraken/module.dart';
 
 abstract class BaseModule {
   String get name;
   final ModuleManager? moduleManager;
   BaseModule(this.moduleManager);
-  String invoke(String method, dynamic params, InvokeModuleCallback callback);
+  String invoke(String method, params, InvokeModuleCallback callback);
   void dispose();
 }
 
-typedef InvokeModuleCallback = void Function({String ?error, dynamic data});
+typedef InvokeModuleCallback = void Function({String ?error, Object? data});
 typedef NewModuleCreator = BaseModule Function(ModuleManager);
 typedef ModuleCreator = BaseModule Function(ModuleManager? moduleManager);
 
@@ -30,7 +32,6 @@ class ModuleManager {
       defineModule((ModuleManager? moduleManager) => AsyncStorageModule(moduleManager));
       defineModule((ModuleManager? moduleManager) => ClipBoardModule(moduleManager));
       defineModule((ModuleManager? moduleManager) => ConnectionModule(moduleManager));
-      defineModule((ModuleManager? moduleManager) => DeviceInfoModule(moduleManager));
       defineModule((ModuleManager? moduleManager) => FetchModule(moduleManager));
       defineModule((ModuleManager? moduleManager) => MethodChannelModule(moduleManager));
       defineModule((ModuleManager? moduleManager) => NavigationModule(moduleManager));
@@ -63,7 +64,7 @@ class ModuleManager {
     bridge.emitModuleEvent(contextId, moduleName, event, jsonEncode(data));
   }
 
-  String invokeModule(String moduleName, String method, dynamic params, InvokeModuleCallback callback) {
+  String invokeModule(String moduleName, String method, params, InvokeModuleCallback callback) {
     ModuleCreator? creator = _creatorMap[moduleName];
     if (creator == null) {
       throw Exception('ModuleManager: Can not find module of name: $moduleName');

@@ -90,7 +90,6 @@ describe('Align text-align', () => {
     BODY.appendChild(container);
 
     await snapshot();
-
     requestAnimationFrame(async () => {
       container.style.textAlign = 'right';
       await snapshot();
@@ -151,6 +150,87 @@ describe('Align text-align', () => {
       }, [
         createText('display flex')
       ]))
+    ]);
+
+    BODY.appendChild(div);
+
+    await snapshot();
+  });
+
+  it('text-align left should work for text node child in flex layout', async () => {
+    const div = createElement('div', {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+        textAlign: 'left',
+        height: '50px',
+        backgroundColor: 'green',
+      }
+    }, [
+      createText('foo'),
+    ]);
+
+    BODY.appendChild(div);
+
+    await snapshot();
+  });
+
+  it('text-align center should work for text node child in flex layout', async () => {
+    const div = createElement('div', {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+        textAlign: 'center',
+        height: '50px',
+        backgroundColor: 'green',
+      }
+    }, [
+      createText('foo'),
+    ]);
+
+    BODY.appendChild(div);
+
+    await snapshot();
+  });
+
+  it('text-align right should work for text node child in flex layout', async () => {
+    const div = createElement('div', {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+        textAlign: 'right',
+        height: '50px',
+        backgroundColor: 'green',
+      }
+    }, [
+      createText('foo'),
+    ]);
+
+    BODY.appendChild(div);
+
+    await snapshot();
+  });
+
+  it('text-align should not work for none text node child in flex layout', async () => {
+    const div = createElement('div', {
+      style: {
+        display: 'flex',
+        flexDirection: 'column',
+        position: 'relative',
+        textAlign: 'center',
+        backgroundColor: 'green',
+      }
+    }, [
+      createElement('div', {
+        style: {
+          backgroundColor: 'yellow',
+          width: '100px',
+          height: '50px'
+        }
+      })
     ]);
 
     BODY.appendChild(div);

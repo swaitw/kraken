@@ -1,3 +1,6 @@
+/*
+ * Copyright (C) 2022-present The Kraken authors. All rights reserved.
+ */
 import 'dart:typed_data';
 import 'dart:io';
 import 'dart:async';
@@ -61,7 +64,7 @@ bool matchImage(Uint8List imageA, List<int> imageB, String filename) {
   if (imageA.length == 0 || imageB.length == 0) {
     return false;
   }
-  
+
   Image a = decodeImage(imageA.toList())!;
   Image b = decodeImage(imageB.toList())!;
   if (!haveSameSize(a, b)) {
@@ -91,12 +94,14 @@ bool matchImage(Uint8List imageA, List<int> imageB, String filename) {
 
   diff /= height * width;
 
-  if (diff > 0) {
+  bool isMatch = (diff * 10e5) < 1;
+
+  if (!isMatch) {
     final newSnap = File('$filename.diff.png');
     newSnap.writeAsBytesSync(encodePng(diffImg));
   }
 
-  return (diff * 10e5) < 20;
+  return isMatch; // < 0.001%
 }
 
 bool matchFile(List<int> left, List<int> right) {

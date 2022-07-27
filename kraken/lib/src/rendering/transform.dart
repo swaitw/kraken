@@ -1,52 +1,32 @@
 /*
- * Copyright (C) 2019 Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
  */
-import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:kraken/rendering.dart';
 
 mixin RenderTransformMixin on RenderBoxModelBase {
-  // Copy from flutter [RenderTransform._effectiveTransform]
-  Matrix4 getEffectiveTransform() {
-    final Matrix4 result = Matrix4.identity();
-    Offset transformOffset = renderStyle.transformOffset;
-    Alignment transformAlignment = renderStyle.transformAlignment;
-    result.translate(transformOffset.dx, transformOffset.dy);
-    late Offset translation;
-    if (transformAlignment != Alignment.topLeft) {
-      // Use boxSize instead of size to avoid Flutter cannot access size beyond parent access warning
-      translation =
-          hasSize ? transformAlignment.alongSize(boxSize!) : Offset.zero;
-      result.translate(translation.dx, translation.dy);
-    }
+  final LayerHandle<TransformLayer> _transformLayer = LayerHandle<TransformLayer>();
 
-    result.multiply(renderStyle.transform!);
-
-    if (transformAlignment != Alignment.topLeft)
-      result.translate(-translation.dx, -translation.dy);
-    result.translate(-transformOffset.dx, -transformOffset.dy);
-    return result;
+  void disposeTransformLayer() {
+    _transformLayer.layer = null;
   }
-
-  TransformLayer? _transformLayer;
 
   void paintTransform(PaintingContext context, Offset offset,
       PaintingContextCallback callback) {
-    if (renderStyle.transform != null) {
-      final Matrix4 transform = getEffectiveTransform();
+    if (renderStyle.transformMatrix != null) {
+      final Matrix4 transform = renderStyle.effectiveTransformMatrix;
       final Offset? childOffset = MatrixUtils.getAsTranslation(transform);
       if (childOffset == null) {
-        _transformLayer = context.pushTransform(
+        _transformLayer.layer = context.pushTransform(
           needsCompositing,
           offset,
           transform,
           callback,
-          oldLayer: _transformLayer,
+          oldLayer: _transformLayer.layer,
         );
       } else {
         callback(context, offset + childOffset);
-        _transformLayer = null;
+        _transformLayer.layer = null;
       }
     } else {
       callback(context, offset);
@@ -54,8 +34,8 @@ mixin RenderTransformMixin on RenderBoxModelBase {
   }
 
   void applyEffectiveTransform(RenderBox child, Matrix4 transform) {
-    if (renderStyle.transform != null) {
-      transform.multiply(getEffectiveTransform());
+    if (renderStyle.transformMatrix != null) {
+      transform.multiply(renderStyle.effectiveTransformMatrix);
     }
   }
 
@@ -65,7 +45,7 @@ mixin RenderTransformMixin on RenderBoxModelBase {
       final RenderLayoutParentData? childParentData =
           child.parentData as RenderLayoutParentData?;
       final bool isHit = result.addWithPaintTransform(
-        transform: getEffectiveTransform(),
+        transform: renderStyle.effectiveTransformMatrix,
         position: position,
         hitTest: (BoxHitTestResult result, Offset position) {
           return result.addWithPaintOffset(
@@ -87,7 +67,7 @@ mixin RenderTransformMixin on RenderBoxModelBase {
   bool hitTestIntrinsicChild(
       BoxHitTestResult result, RenderBox? child, Offset position) {
     final bool isHit = result.addWithPaintTransform(
-      transform: getEffectiveTransform(),
+      transform: renderStyle.effectiveTransformMatrix,
       position: position,
       hitTest: (BoxHitTestResult result, Offset position) {
         return child?.hitTest(result, position: position) ?? false;

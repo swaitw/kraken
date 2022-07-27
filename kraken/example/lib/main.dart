@@ -1,7 +1,10 @@
+/*
+ * Copyright (C) 2022-present The Kraken authors. All rights reserved.
+ */
 import 'package:flutter/material.dart';
 import 'package:kraken/kraken.dart';
-import'package:kraken_websocket/kraken_websocket.dart';
-import 'dart:ui';
+import 'package:kraken/devtools.dart';
+import 'package:kraken_websocket/kraken_websocket.dart';
 
 void main() {
   KrakenWebsocket.initialize();
@@ -62,10 +65,10 @@ class _MyHomePageState extends State<MyBrowser> {
             controller: textEditingController,
             onSubmitted: (value) {
               textEditingController.text = value;
-              _kraken?.loadURL(value);
+              _kraken?.load(KrakenBundle.fromUrl(value));
             },
             decoration: InputDecoration(
-              hintText: 'Enter a app url',
+              hintText: 'Enter URL',
               hintStyle: TextStyle(color: Colors.black54, fontSize: 16.0),
               contentPadding: const EdgeInsets.all(10.0),
               filled: true,
@@ -88,9 +91,10 @@ class _MyHomePageState extends State<MyBrowser> {
         // Center is a layout widget. It takes a single child and positions it
         // in the middle of the parent.
         child: _kraken = Kraken(
+          devToolsService: ChromeDevToolsService(),
           viewportWidth: viewportSize.width - queryData.padding.horizontal,
           viewportHeight: viewportSize.height - appBar.preferredSize.height - queryData.padding.vertical,
-          bundleURL: 'assets/bundle.js',
+          bundle: KrakenBundle.fromUrl('assets:assets/bundle.html'),
         ),
     ));
   }

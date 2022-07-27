@@ -1,8 +1,12 @@
+/*
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
+ */
 // Copyright 2014 The Flutter Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/animation.dart';
 import 'package:flutter/gestures.dart';
@@ -145,6 +149,15 @@ class ScrollPositionWithSingleContext extends ScrollPosition implements ScrollAc
   ScrollDirection get userScrollDirection => _userScrollDirection;
   ScrollDirection _userScrollDirection = ScrollDirection.idle;
 
+  /// Set [userScrollDirection] to the given value.
+  ///
+  /// If this changes the value, then a [UserScrollNotification] is dispatched.
+  void updateUserScrollDirection(ScrollDirection value) {
+    if (userScrollDirection == value)
+      return;
+    _userScrollDirection = value;
+  }
+
   @override
   Future<void> animateTo(
     double? to, {
@@ -179,6 +192,24 @@ class ScrollPositionWithSingleContext extends ScrollPosition implements ScrollAc
     goBallistic(0.0);
   }
 
+  @override
+  void pointerScroll(double delta) {
+    assert(delta != 0.0);
+
+    final double targetPixels =
+        math.min(math.max(pixels + delta, minScrollExtent), maxScrollExtent);
+    if (targetPixels != pixels) {
+      goIdle();
+      updateUserScrollDirection(
+          -delta > 0.0 ? ScrollDirection.forward : ScrollDirection.reverse,
+      );
+      forcePixels(targetPixels);
+      isScrollingNotifier.value = true;
+      notifyListeners();
+      goBallistic(0.0);
+    }
+  }
+
   @Deprecated(
       'This will lead to bugs.') // ignore: flutter_deprecation_syntax, https://github.com/flutter/flutter/issues/44609
   @override
@@ -205,7 +236,7 @@ class ScrollPositionWithSingleContext extends ScrollPosition implements ScrollAc
   ScrollDragController? _currentDrag;
 
   @override
-  Drag drag(DragStartDetails details, VoidCallback dragCancelCallback) {
+  ScrollDragController drag(DragStartDetails details, VoidCallback dragCancelCallback) {
     final ScrollDragController drag = ScrollDragController(
       delegate: this,
       details: details,

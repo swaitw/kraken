@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2020-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2020-present The Kraken authors. All rights reserved.
  */
 // ignore_for_file: unused_import, undefined_function
 
@@ -20,7 +19,6 @@ import 'package:flutter/services.dart';
 import 'package:test/test.dart';
 
 import 'test_input.dart';
-import 'platform.dart';
 import 'match_snapshots.dart';
 
 // Steps for using dart:ffi to call a Dart function from C:
@@ -101,7 +99,7 @@ class MousePointer extends Struct {
 void _simulatePointer(Pointer<Pointer<MousePointer>> mousePointerList, int length, int pointer) {
   List<PointerData> data = [];
 
-  for (int i = 0; i < length; i ++) {
+  for (int i = 0; i < length; i++) {
     int contextId = mousePointerList[i].ref.contextId;
     double x = mousePointerList[i].ref.x;
     double y = mousePointerList[i].ref.y;
@@ -146,8 +144,7 @@ typedef Native_RegisterTestEnvDartMethods = Void Function(Pointer<Uint64> method
 typedef Dart_RegisterTestEnvDartMethods = void Function(Pointer<Uint64> methodBytes, int length);
 
 final Dart_RegisterTestEnvDartMethods _registerTestEnvDartMethods =
-nativeDynamicLibrary.lookup<NativeFunction<Native_RegisterTestEnvDartMethods>>('registerTestEnvDartMethods').asFunction();
-
+KrakenDynamicLibrary.ref.lookup<NativeFunction<Native_RegisterTestEnvDartMethods>>('registerTestEnvDartMethods').asFunction();
 
 void registerDartTestMethodsToCpp() {
   Pointer<Uint64> bytes = malloc.allocate<Uint64>(sizeOf<Uint64>() * _dartNativeMethods.length);

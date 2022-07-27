@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2021-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
  */
 
 import 'dart:async';
@@ -146,12 +145,16 @@ class HttpCacheObject {
 
   /// Read the index file.
   Future<void> read() async {
-    if (_valid) return;
-    final bool isIndexFileExist = await _file.exists();
-    if (!isIndexFileExist) {
-      // Index file not exist, dispose.
+    // Make sure file exists, or causing io exception.
+    if (!await _file.exists() || !await _blob.exists()) {
+      _valid = false;
       return;
     }
+
+    // If index read before, ignoring to read again.
+    // Note: if index or blob file were being changed, this will make chaos,
+    //   usually this is an abnormal operation.
+    if (_valid) return;
 
     try {
       Uint8List bytes = await _file.readAsBytes();
@@ -186,12 +189,6 @@ class HttpCacheObject {
         index += 4;
       }
 
-      // Invalid cache blob size, mark as invalid.
-      if (await _blob.length != contentLength) {
-        _valid = false;
-        return;
-      }
-
       int urlLength;
       if (index + 4 <= byteLength) {
         // Read url.
@@ -223,7 +220,6 @@ class HttpCacheObject {
         }
         index += eTagLength;
       }
-
 
       int headersLength;
       if (index + 4 <= byteLength) {
@@ -286,6 +282,10 @@ class HttpCacheObject {
     // Store shorted response headers, 4B.
     writeString(bytesBuilder, headers ?? '', 4);
 
+    // In case of cache object file is deleted by accident.
+    if (!await _file.exists()) {
+      await _file.create(recursive: true);
+    }
     // The index file will not be TOO LARGE,
     // so take bytes at one time.
     await _file.writeAsBytes(bytesBuilder.takeBytes(), flush: true);
@@ -307,8 +307,8 @@ class HttpCacheObject {
     _valid = false;
   }
 
-  Map<String, String> _getResponseHeaders() {
-    Map<String, String> responseHeaders = {};
+  Map<String, List<String>> _getResponseHeaders() {
+    Map<String, List<String>> responseHeaders = {};
 
     // Read headers from cache.
     if (headers != null) {
@@ -328,27 +328,28 @@ class HttpCacheObject {
             value = kvTuple.sublist(1).join(':');
           }
 
-          responseHeaders[key] = value.trim();
+          List<String> values = (responseHeaders[key] ??= <String>[]);
+          values.add(value.trim());
         }
       }
     }
 
     // Override cache control http headers.
     if (eTag != null) {
-      responseHeaders[HttpHeaders.etagHeader] = eTag!;
+      responseHeaders[HttpHeaders.etagHeader] = [eTag!];
     }
     if (expiredTime != null) {
-      responseHeaders[HttpHeaders.expiresHeader] = HttpDate.format(expiredTime!);
+      responseHeaders[HttpHeaders.expiresHeader] = [HttpDate.format(expiredTime!)];
     }
     if (contentLength != null) {
-      responseHeaders[HttpHeaders.contentLengthHeader] = contentLength.toString();
+      responseHeaders[HttpHeaders.contentLengthHeader] = [contentLength.toString()];
     }
     if (lastModified != null) {
-      responseHeaders[HttpHeaders.lastModifiedHeader] = HttpDate.format(lastModified!);
+      responseHeaders[HttpHeaders.lastModifiedHeader] = [HttpDate.format(lastModified!)];
     }
 
     // Mark cache hit flag.
-    responseHeaders[_httpHeaderCacheHits] = _httpCacheHit;
+    responseHeaders[_httpHeaderCacheHits] = [_httpCacheHit];
 
     return responseHeaders;
   }
@@ -362,16 +363,37 @@ class HttpCacheObject {
     return await _blob.exists();
   }
 
-  Future<HttpClientResponse?> toHttpClientResponse() async {
+  Future<HttpClientResponse?> toHttpClientResponse([HttpClient? httpClient]) async {
     if (!await _exists) {
       return null;
+    }
+    HttpHeaders responseHeaders = createHttpHeaders(initialHeaders: _getResponseHeaders());
+
+    // Unless content-encoding specified, like gzip or delfate, the real size is decoded size.
+    // Trust the blob length.
+    if (responseHeaders.value(HttpHeaders.contentEncodingHeader) == null) {
+      int blobLength = await _blob.length;
+      if (contentLength != blobLength) {
+        contentLength = blobLength;
+      }
     }
 
     return HttpClientStreamResponse(
       _blob.openRead(),
       statusCode: HttpStatus.ok,
-      responseHeaders: _getResponseHeaders(),
-    );
+      initialHeaders: responseHeaders,
+    )..compressionState = _getCompressionState(httpClient, responseHeaders);
+  }
+
+
+  static HttpClientResponseCompressionState _getCompressionState(HttpClient? httpClient, HttpHeaders responseHeaders) {
+    if (httpClient != null && responseHeaders.value(HttpHeaders.contentEncodingHeader) == 'gzip') {
+      return httpClient.autoUncompress
+          ? HttpClientResponseCompressionState.decompressed
+          : HttpClientResponseCompressionState.compressed;
+    } else {
+      return HttpClientResponseCompressionState.notCompressed;
+    }
   }
 
   Future<Uint8List?> toBinaryContent() async {
@@ -423,10 +445,13 @@ class HttpCacheObject {
     }
 
     // Update content length.
-    int contentLength = response.headers.contentLength;
-    if (!contentLength.isNegative && contentLength != this.contentLength) {
-      this.contentLength = contentLength;
-      indexChanged = true;
+    // Only update content length while status code equals 200.
+    if (response.statusCode == HttpStatus.ok) {
+      int contentLength = response.headers.contentLength;
+      if (!contentLength.isNegative && contentLength != this.contentLength) {
+        this.contentLength = contentLength;
+        indexChanged = true;
+      }
     }
 
     // Update index.

@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2021-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
  */
 
 import 'package:flutter/rendering.dart';
@@ -9,12 +8,11 @@ import 'package:kraken/dom.dart';
 const String DOCUMENT_FRAGMENT = 'DOCUMENTFRAGMENT';
 
 class DocumentFragment extends Node {
-  DocumentFragment(int targetId, nativeNodePtr, ElementManager elementManager)
-      : super(NodeType.COMMENT_NODE, targetId, nativeNodePtr, elementManager);
+  DocumentFragment([context]) : super(NodeType.COMMENT_NODE, context);
 
   @override
   String get nodeName => '#documentfragment';
 
   @override
-  RenderObject? get renderer => null;
+  RenderBox? get renderer => null;
 }

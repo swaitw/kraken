@@ -1,8 +1,219 @@
-## 0.9.0-rc
+## 0.11.0
+
+**Breaking Changes**
+
++ Update flutter requirement to 2.8.x https://github.com/openkraken/kraken/pull/1298
+
+**Bug Fixed**
+
+- Fix Kraken widget instance memory leak from window. https://github.com/openkraken/kraken/pull/1297
+
+## 0.10.4
 
 **Features**
 
-+ Migrate JavaScript engine from JSC to quickjs.
++ Support window.innerWidth & window.innerHeight, and screen.availWidth & screen.availHeight. https://github.com/openkraken/kraken/pull/1256
+
+**Bug Fixed**
+
++ Fix error when using KrakenBundle.fromByteCode(). https://github.com/openkraken/kraken/pull/1245
++ Fix DataBundle string with non latin. https://github.com/openkraken/kraken/pull/1263
+
+** Others **
+
++ Change copyright to `The Kraken authors`.
+
+## 0.10.3
+
+**Bug Fixed**
+
++ Fix Http cache file io error https://github.com/openkraken/kraken/pull/1202.
++ Fix align-self not work for positioned flex item. https://github.com/openkraken/kraken/pull/1207
++ Fix text-align should only work for text node for flex item. https://github.com/openkraken/kraken/pull/1208
++ Fix crash with scrolling.  https://github.com/openkraken/kraken/pull/1209
++ Fix children of inline-block element not stretch. https://github.com/openkraken/kraken/pull/1214
++ Fix style set to empty string. https://github.com/openkraken/kraken/pull/1220
++ Fix flex item not stretch when child size changed. https://github.com/openkraken/kraken/pull/1229
++ Fix html parse error. https://github.com/openkraken/kraken/pull/1231
++ Fix asset protocol error. https://github.com/openkraken/kraken/pull/1232
++ Fix file protocol. https://github.com/openkraken/kraken/pull/1234
+
+
+## 0.10.2+1
+
+**Bug Fixed**
+
++ Fix ios framework bundle missing CFBundleVersion and CFBundleAShortVersionString key. https://github.com/openkraken/kraken/pull/1194
+
+## 0.10.2
+
+**Bug Fixed**
+
++ Fix report error cause stack overflow. https://github.com/openkraken/kraken/pull/1164
++ Fix object-fit not work due to image resize optimization. https://github.com/openkraken/kraken/pull/1165
++ Fix crash when reload. https://github.com/openkraken/kraken/pull/1167
++ Fix referer and origin. https://github.com/openkraken/kraken/pull/1170
++ Fix large file content may fail. https://github.com/openkraken/kraken/pull/1176
++ Fix native event memory align on 32 bit devices. https://github.com/openkraken/kraken/pull/1182
++ Fix image load error cause crash. https://github.com/openkraken/kraken/pull/1187
+
+## 0.10.1
+
+**Bug Fixed**
+
++ Fix custom flutter widget when kraken disposed.  https://github.com/openkraken/kraken/pull/1142
++ Fix scrollable size should include padding. https://github.com/openkraken/kraken/pull/1135
++ Fix http request doesn't support multiple headers. https://github.com/openkraken/kraken/pull/1148
++ Fix document.location is undefined. https://github.com/openkraken/kraken/pull/1150
+
+
+## 0.10.0+5
+
+**Bug Fixed**
+
++ Fix WebSocket dev server error. https://github.com/openkraken/kraken/pull/1131
++ Fix image intrinsic size not correct which include padding and border. https://github.com/openkraken/kraken/pull/1127
++ Fix unhandledPromiseRejection event. https://github.com/openkraken/kraken/pull/1137
++ Fix fetch API request options. https://github.com/openkraken/kraken/pull/1139
+
+## 0.10.0+4
+
+**Bug Fixed**
+
++ Fix HttpCache error on linux platform. https://github.com/openkraken/kraken/pull/1113
++ Fix exception leak cause globalObject not fully freed. https://github.com/openkraken/kraken/pull/1117
++ Fix border radius of one percentage value. https://github.com/openkraken/kraken/pull/1121
+
+## 0.10.0+3
+
+**Bug Fixed**
+
++ Fix empty screen when page reload. https://github.com/openkraken/kraken/pull/1109
++ Fix linux dynamic rpath. https://github.com/openkraken/kraken/pull/1111
+
+## 0.10.0+2
+
+**Bug Fixed**
+
++ Fix error when set empty string to textOverflow. https://github.com/openkraken/kraken/pull/1095
++ Fix input delete key binding. https://github.com/openkraken/kraken/pull/1096
++ Fix load kraken bundle from env and native side. https://github.com/openkraken/kraken/pull/1098
++ Fix crash when reload page. https://github.com/openkraken/kraken/pull/1102
+
+## 0.10.0+1
+
+**Bug Fixed**
+
++ Fix stack overflow when working with multiple thread. https://github.com/openkraken/kraken/pull/1086
++ Fix sepeated setting of style is invalid. https://github.com/openkraken/kraken/pull/1088
+
+
+## 0.10.0
+
+**Break Changes**
+
+* `Kraken.loadURL`, `Kraken.loadContent`, `Kraken.loadByteCode` are deprecated. Please use `KrakenBundle.fromUrl`, `KrakenBundle.fromContent` instead.
+* Flutter Widget API had been upgraded, please refer to https://openkraken.com/guide/advanced/widget-custom-element for more info.
+
+**Big News**
+
+* Support using Flutter Widget as HTML Custom Element which can greatly extend the capability of Web, refer to [this doc](https://openkraken.com/en-US/guide/advanced/widget-custom-element) for detailed use.
++ Performance optimized:
+  - Page load time reduced 10%.
+  - Scrolling FPS incrased 40%.
++ Linux platform supported.
++ Support Flutter 2.5.3.
+
+**Features**
+
++ Support defining Flutter widget as HTML custom element. https://github.com/openkraken/kraken/pull/904
++ Support `style` element and `className` attribute. https://github.com/openkraken/kraken/pull/656
++ Support  `link` element and CSS variables. https://github.com/openkraken/kraken/pull/961
++ Support `assets:` protocol to unify the means to load local assets for different platforms. https://github.com/openkraken/kraken/pull/866
++ Support pause kraken pages when navigator changes. https://github.com/openkraken/kraken/pull/877
++ Support linux platform. https://github.com/openkraken/kraken/pull/887
++ Support customize kraken dynamic library path. https://github.com/openkraken/kraken/pull/1048
+
+**Bug Fixed**
+
++ Fix width error in case of min width width padding. https://github.com/openkraken/kraken/pull/843
++ Fix percentage with decimal point. https://github.com/openkraken/kraken/pull/845
++ Fix iOS App store certificate validation. https://github.com/openkraken/kraken/pull/847
++ Fix text height with text-overflow ellipsis. https://github.com/openkraken/kraken/pull/848
++ Fix clone documentFragment node support. https://github.com/openkraken/kraken/pull/851
++ Fix layout wrapping space. https://github.com/openkraken/kraken/pull/856
++ Fix position placeholder offset not including margin. https://github.com/openkraken/kraken/pull/857
++ Fix position sticky fail with overflow hidden. https://github.com/openkraken/kraken/pull/858
++ Fix HTMLAnchorElement lack full property support. https://github.com/openkraken/kraken/pull/864
++ Fix HTMLBRElement size not correct. https://github.com/openkraken/kraken/pull/867
++ Fix crash due to disposeEventTarget sync implementation. https://github.com/openkraken/kraken/pull/873
++ Fix image performance by add image cache. https://github.com/openkraken/kraken/pull/879
++ Fix empty text node renderObject. https://github.com/openkraken/kraken/pull/881
++ Fix previous blank of text node. https://github.com/openkraken/kraken/pull/886
++ Fix only trigger gc once when disposed. https://github.com/openkraken/kraken/pull/892
++ Fix crash due to weak reference between style and element. https://github.com/openkraken/kraken/pull/895
++ Fix layout performance by caching constraints. https://github.com/openkraken/kraken/pull/897
++ Fix sliver child is text without renderer should not accept. https://github.com/openkraken/kraken/pull/898
++ Fix renderObject and element memory leaks. https://github.com/openkraken/kraken/pull/900
++ Fix hit test children not works in sliver list. https://github.com/openkraken/kraken/pull/905
++ Fix intersection observer performance. https://github.com/openkraken/kraken/pull/908
++ Fix crash when reportError. https://github.com/openkraken/kraken/pull/913
++ Fix style fail after resize. https://github.com/openkraken/kraken/pull/916
++ Fix some sliver usage cases. https://github.com/openkraken/kraken/pull/922
++ Fix free event targets properties by gc mark. https://github.com/openkraken/kraken/pull/929
++ Fix insert before fixed element. https://github.com/openkraken/kraken/pull/930
++ Fix document.createElement in multiple context. https://github.com/openkraken/kraken/pull/935
++ Fix error due to lacking negative length validation. https://github.com/openkraken/kraken/pull/938
++ Fix bridge memory leaks. https://github.com/openkraken/kraken/pull/939
++ Fix nested fixed element paint order. https://github.com/openkraken/kraken/pull/947
++ Fix image natural size with same url. https://github.com/openkraken/kraken/pull/948
++ Fix createElement and createTextNode performance. https://github.com/openkraken/kraken/pull/952
++ Fix text not shrink in flex container. https://github.com/openkraken/kraken/pull/980
++ Fix text rendering performance. https://github.com/openkraken/kraken/pull/990
++ Fix flex stretch height when positioned child exists. https://github.com/openkraken/kraken/pull/1004
++ Fix transform should avoid trigger layout. https://github.com/openkraken/kraken/pull/1008
++ Fix ui command buffer instance leak. https://github.com/openkraken/kraken/pull/1014
++ Fix element attributes incorrect reference count. https://github.com/openkraken/kraken/pull/1020
++ Fix relayout boundary of flex item. https://github.com/openkraken/kraken/pull/1023
++ Fix element insert order of insertBefore. https://github.com/openkraken/kraken/pull/1024
++ Fix event target string property leak. https://github.com/openkraken/kraken/pull/1028
++ Fix reposition children logic lacking when position changed. https://github.com/openkraken/kraken/pull/1033
++ Fix this_val on global func call. https://github.com/openkraken/kraken/pull/1036
++ Fix event type atom id changed when free. https://github.com/openkraken/kraken/pull/1040
++ Fix offsetTop and offsetLeft should relative to body element if no positioned parent found. https://github.com/openkraken/kraken/pull/1041
++ Fix percentage of positioned element. https://github.com/openkraken/kraken/pull/1044
++ Fix input should blur when click other target. https://github.com/openkraken/kraken/pull/1052
++ Fix positioned element logical width/height calculation. https://github.com/openkraken/kraken/pull/1053
+
+## 0.9.0
+
+**Big News**
+
+The QuickJS engine is now landed on kraken and we decided to replace our original JavaScriptCore implementation, which can provide low latency page init time and memory usage.
+
+**Break Changes**
+
++ `Kraken.defineCustomElement` API had been redesigned, now you can define both element and widget with the same API. https://github.com/openkraken/kraken/pull/792
+
+
+**Features**
+
++ Migrate JavaScript Engine from JavaScriptCore to QuickJS.
++ Support query attributes on element from `document.querySelector` and `document.querySelectorAll`. https://github.com/openkraken/kraken/pull/747
++ Auto detect physical device type and use different scroll animation behavior. `BouncingScrollPhysics` on iOS and `ClampingScrollPhysics` on Android. https://github.com/openkraken/kraken/pull/750
++ Add empty SVGElement tags but not svg rendering, to let vue app works. https://github.com/openkraken/kraken/pull/757
++ Add Apple silicon support. https://github.com/openkraken/kraken/pull/767
++ Add Webpack HMR support. https://github.com/openkraken/kraken/pull/785
+
+
+**Bug Fixed**
+
++ Fix async error when update src property on image element. https://github.com/openkraken/kraken/pull/759
++ Fix http-cache not updating when `last-modified` headers on HTTP request changed. https://github.com/openkraken/kraken/pull/784
++ Fix HTML tags can not use custom tags. https://github.com/openkraken/kraken/pull/790
++ Fix rendering error when append child on image elemnet. https://github.com/openkraken/kraken/pull/791
++ Fix translate negative percentage not working. https://github.com/openkraken/kraken/pull/832
+
 
 ## 0.8.4
 

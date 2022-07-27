@@ -1,5 +1,6 @@
 /*auto generated*/
 describe('border-applies', () => {
+  // @TODO: Vertical border not working for inline box.
   xit('to-008', async () => {
     let p;
     let div;
@@ -25,7 +26,7 @@ describe('border-applies', () => {
     BODY.appendChild(p);
     BODY.appendChild(div);
 
-    await snapshot(0.1);
+    await snapshot();
   });
   it('to-009', async () => {
     let p;
@@ -63,9 +64,9 @@ describe('border-applies', () => {
     BODY.appendChild(p);
     BODY.appendChild(div);
 
-    await snapshot(0.1);
+    await snapshot();
   });
-  xit('to-012', async () => {
+  it('to-012', async () => {
     let p;
     let blockDescendant;
     let blockDescendant_1;
@@ -135,6 +136,6 @@ describe('border-applies', () => {
     BODY.appendChild(p);
     BODY.appendChild(div);
 
-    await snapshot(0.1);
+    await snapshot();
   });
 });

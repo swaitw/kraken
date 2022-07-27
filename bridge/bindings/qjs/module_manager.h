@@ -1,24 +1,22 @@
 /*
- * Copyright (C) 2021 Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
  */
 
 #ifndef KRAKENBRIDGE_MODULE_MANAGER_H
 #define KRAKENBRIDGE_MODULE_MANAGER_H
 
-#include "js_context.h"
+#include "executing_context.h"
 
 namespace kraken::binding::qjs {
 
 struct ModuleContext {
   JSValue callback;
-  JSContext *context;
+  ExecutionContext* context;
   list_head link;
 };
 
-void bindModuleManager(std::unique_ptr<JSContext> &context);
-void handleInvokeModuleUnexpectedCallback(void *callbackContext, int32_t contextId, NativeString *errmsg,
-                                          NativeString *json);
-}
+void bindModuleManager(ExecutionContext* context);
+void handleInvokeModuleUnexpectedCallback(void* callbackContext, int32_t contextId, NativeString* errmsg, NativeString* json);
+}  // namespace kraken::binding::qjs
 
-#endif // KRAKENBRIDGE_MODULE_MANAGER_H
+#endif  // KRAKENBRIDGE_MODULE_MANAGER_H

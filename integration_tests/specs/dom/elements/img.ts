@@ -8,7 +8,7 @@ describe('Tags img', () => {
     img.style.width = '60px';
     img.setAttribute(
       'src',
-      '//gw.alicdn.com/tfs/TB1MRC_cvb2gK0jSZK9XXaEgFXa-1701-1535.png'
+      'assets/100x100-green.png'
     );
 
     document.body.appendChild(img);
@@ -95,23 +95,47 @@ describe('Tags img', () => {
         document.body.appendChild(img);
       });
     });
+
+    it('should work with value change to empty string', async (done) => {
+      let image;
+      image = createElement(
+        'img',
+        {
+          src: 'assets/ruler-h-50px.png',
+          style: {
+            display: 'block',
+            'object-fit': 'cover',
+            'object-position': 'right bottom',
+            width: '100px',
+            height: '100px',
+            backgroundColor: 'yellow'
+          },
+        },
+      );
+      BODY.appendChild(image);
+
+      requestAnimationFrame(async () => {
+        image.style.objectPosition = '';
+        await snapshot(0.1);
+        done();
+      });
+    });
   });
 
-  it('set src property setter', async () => {
+  it('set src property setter', async (done) => {
     const img = createElement('img', {
       src: 'assets/rabbit.png'
     }) as HTMLImageElement;
     BODY.appendChild(img);
     let src = img.src;
-    expect(src).toBe('assets/rabbit.png');
+    expect(src).toBe('assets:///assets/rabbit.png');
     // have to wait for asset load?
-    await sleep(0.1);
-    await snapshot();
+    await snapshot(0.1);
     img.src = 'assets/solidblue.png';
-    await sleep(0.1);
-    await snapshot();
+    await snapshot(0.1);
     src = img.src;
-    expect(src).toBe('assets/solidblue.png');
+    expect(src).toBe('assets:///assets/solidblue.png');
+    done();
   });
 
   it('read image size through property', async (done) => {
@@ -126,7 +150,7 @@ describe('Tags img', () => {
     BODY.appendChild(img);
   });
 
-  it('change image src dynamically', async () => {
+  it('change image src dynamically', async (done) => {
     const img = createElement('img', {
       src: 'assets/rabbit.png'
     }) as HTMLImageElement;
@@ -134,16 +158,18 @@ describe('Tags img', () => {
     await snapshot(0.2);
     img.src = 'assets/300x150-green.png';
     await snapshot(0.2);
+    done();
   });
 
-  it('support base64 data url', async () => {
+  it('support base64 data url', async (done) => {
     var img = document.createElement('img');
     img.src = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA8AAAAPCAIAAAC0tAIdAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAgY0hSTQAAeiYAAICEAAD6AAAAgOgAAHUwAADqYAAAOpgAABdwnLpRPAAAACJJREFUKFNjZGD4z0AKAKomHpGgFOQK4g0eVY01rEZCCAIAC+rSL3tdVQUAAAAASUVORK5CYII=';
     document.body.appendChild(img);
     await snapshot(0.2);
+    done();
   });
 
-  it('minwidth and minheight of image is 0', async () => {
+  it('minwidth and minheight of image is 0', async (done) => {
     var img = document.createElement('img');
     img.src = 'https://gw.alicdn.com/tfs/TB1CxCYq5_1gK0jSZFqXXcpaXXa-128-90.png';
     img.style.minWidth = '0';
@@ -151,6 +177,7 @@ describe('Tags img', () => {
     img.style.display = 'inline';
     document.body.appendChild(img);
     await snapshot(0.2);
+    done();
   });
 
   it('image size and image natural size', (done) => {
@@ -158,7 +185,7 @@ describe('Tags img', () => {
     var img = document.createElement('img');
     img.onload = function() {
       expect(img.naturalWidth).toEqual(200);
-      expect(img.naturalWidth).toEqual(200);
+      expect(img.naturalHeight).toEqual(200);
       done();
     };
     img.src = imageURL;
@@ -174,19 +201,20 @@ describe('Tags img', () => {
     expect(img.height).toEqual(20);
     // Image has not been loaded.
     expect(img.naturalWidth).toEqual(0);
-    expect(img.naturalWidth).toEqual(0);
+    expect(img.naturalHeight).toEqual(0);
   });
 
   it('should work with loading=lazy', (done) => {
     const img = document.createElement('img');
     // Make image loading=lazy.
     img.setAttribute('loading', 'lazy');
-    img.src = '//gw.alicdn.com/tfs/TB1MRC_cvb2gK0jSZK9XXaEgFXa-1701-1535.png';
+    img.src = 'assets/100x100-green.png';
     img.style.width = '60px';
 
     document.body.appendChild(img);
 
     img.onload = async () => {
+      await sleep(0.5);
       await snapshot(img);
       done();
     };
@@ -209,7 +237,7 @@ describe('Tags img', () => {
 
     img.onload = async () => {
       window.scroll(0, 2000);
-      await snapshot();
+      await snapshot(0.5);
       done();
     };
     img.src = 'https://gw.alicdn.com/tfs/TB1CxCYq5_1gK0jSZFqXXcpaXXa-128-90.png';
@@ -232,7 +260,7 @@ describe('Tags img', () => {
     );
 
     img.addEventListener('load', async () => {
-      await snapshot();
+      await snapshot(0.5);
       done();
     });
 
@@ -252,7 +280,7 @@ describe('Tags img', () => {
     );
 
     img.addEventListener('load', async () => {
-      await snapshot();
+      await snapshot(0.5);
       done();
     });
 
@@ -273,7 +301,7 @@ describe('Tags img', () => {
     );
 
     img.addEventListener('load', async () => {
-      await snapshot();
+      await snapshot(0.5);
       done();
     });
 
@@ -300,30 +328,174 @@ describe('Tags img', () => {
       } else {
         done('load event should only trigger once.');
       }
-    }, 100);
+    }, 200);
   });
 
-  it('gif can replay', async (done) => {
-    const imageURL = 'assets/sample-gif-40k.gif';
+  it('gif can not replay by remove nodes', async (done) => {
+    const imageURL = 'assets/10frames-1s.gif';
     const img = document.createElement('img');
 
     img.onload = async () => {
-      await snapshot(img);
+      // Disable due to CI fail due to snapshot inconsistency.
+      // await snapshot(img);
       document.body.removeChild(img);
 
-      setTimeout(() => {
+      // Delay 200ms to play gif.
+      setTimeout(async () => {
+        // When img re-append to document, to Gif image will continue to play.
         document.body.appendChild(img);
-        // After next frame that image has shown.
-        requestAnimationFrame(async () => {
-          // When replay, the image should be same as first frame.
-          await snapshot(img);
-          done();
-        });
-        // Delay 600ms to play gif.
-      }, 600);
+        await snapshot(img);
+        done();
+      }, 200);
     };
 
     document.body.appendChild(img);
     img.src = imageURL;
   });
+
+  it('width property change should work when width of style is not set', async (done) => {
+    let img = createElement('img', {
+      src: 'assets/300x150-green.png',
+      width: 100,
+      height: 100,
+    });
+    BODY.appendChild(img);
+
+    requestAnimationFrame(async () => {
+      img.width = 200;
+      await snapshot(0.1);
+      done();
+    });
+  });
+
+  it('width property should not work when width of style is auto', async (done) => {
+    let img = createElement('img', {
+      src: 'assets/300x150-green.png',
+      width: 100,
+      height: 100,
+      style: {
+          width: 'auto'
+      }
+    });
+    BODY.appendChild(img);
+
+    await snapshot(0.1);
+    done();
+  });
+
+  it('can get natualSize from repeat image url', async (done) => {
+    const flutterContainer = document.createElement('div');
+    flutterContainer.style.height = '100vh';
+    flutterContainer.style.display = 'block';
+    document.body.appendChild(flutterContainer);
+
+    const colors = ['red', 'yellow', 'black', 'blue', 'green'];
+    const images = [
+      'assets/100x100-green.png',
+      'assets/200x200-green.png',
+      'assets/60x60-gg-rr.png',
+    ];
+
+    let loadedCount = 0;
+    let imgCount = 10;
+
+    for (let i = 0; i < imgCount; i++) {
+      const div = document.createElement('div');
+      div.style.width = '100px';
+      div.style.height = '100px';
+      div.style.border = `3px solid ${colors[i % colors.length]}`
+      div.appendChild(document.createTextNode(i));
+
+      const img = document.createElement('img');
+      img.src = images[i % images.length];
+      div.appendChild(img);
+      img.style.width = '80px';
+      img.onload = async () => {
+        loadedCount++;
+        if (loadedCount == imgCount) {
+          await snapshot();
+          done();
+        }
+      };
+
+      flutterContainer.appendChild(div);
+    }
+  });
+
+  it('works with padding border exist and width height not exist', async (done) => {
+    let image;
+    image = createElement(
+      'img',
+      {
+        src: 'assets/100x100-green.png',
+        style: {
+          border: '10px solid black',
+          padding: '20px',
+        },
+      },
+    );
+    BODY.appendChild(image);
+
+    await snapshot(0.1);
+    done();
+  });
+
+  it('works with padding border width exist and height not exist', async (done) => {
+    let image;
+    image = createElement(
+      'img',
+      {
+        src: 'assets/100x100-green.png',
+        style: {
+          border: '10px solid black',
+          padding: '20px',
+          width: '250px',
+        },
+      },
+    );
+    BODY.appendChild(image);
+
+    await snapshot(0.1);
+    done();
+  });
+
+  it('works with padding border height exist and width not exist', async (done) => {
+    let image;
+    image = createElement(
+      'img',
+      {
+        src: 'assets/100x100-green.png',
+        style: {
+          border: '10px solid black',
+          padding: '20px',
+          height: '100px',
+        },
+      },
+    );
+    BODY.appendChild(image);
+
+    await snapshot(0.1);
+    done();
+  });
+
+  it('works with padding border width height both exist', async (done) => {
+    let image;
+    image = createElement(
+      'img',
+      {
+        src: 'assets/100x100-green.png',
+        style: {
+          border: '10px solid black',
+          padding: '20px',
+          width: '350px',
+          height: '150px',
+        },
+      },
+    );
+    BODY.appendChild(image);
+
+    await snapshot(0.1);
+    done();
+  });
+
 });

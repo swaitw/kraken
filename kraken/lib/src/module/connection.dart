@@ -1,6 +1,5 @@
 /*
- * Copyright (C) 2021-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
  */
 
 import 'package:connectivity/connectivity.dart';
@@ -57,7 +56,7 @@ class ConnectionModule extends BaseModule {
   void dispose() {}
 
   @override
-  String invoke(String method, dynamic params, InvokeModuleCallback callback) {
+  String invoke(String method, params, InvokeModuleCallback callback) {
     switch (method) {
       case 'getConnectivity': {
         getConnectivity((Map json) {

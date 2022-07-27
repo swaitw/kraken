@@ -1,28 +1,31 @@
 /*
- * Copyright (C) 2021 Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2021-present The Kraken authors. All rights reserved.
  */
 
 #ifndef KRAKENBRIDGE_SCREEN_H
 #define KRAKENBRIDGE_SCREEN_H
 
+#include "bindings/qjs/executing_context.h"
 #include "bindings/qjs/host_object.h"
-#include "bindings/qjs/js_context.h"
 #include "dart_methods.h"
 
 namespace kraken::binding::qjs {
 
 class Screen : public HostObject {
-public:
-  explicit Screen(JSContext *context) : HostObject(context, "Screen"){};
-private:
-  DEFINE_HOST_OBJECT_PROPERTY(2, width, height);
+ public:
+  explicit Screen(ExecutionContext* context) : HostObject(context, "Screen"){};
+
+ private:
+  DEFINE_READONLY_PROPERTY(width);
+  DEFINE_READONLY_PROPERTY(height);
+  DEFINE_READONLY_PROPERTY(availWidth);
+  DEFINE_READONLY_PROPERTY(availHeight);
 };
 
-void bindScreen(std::unique_ptr<JSContext> &context);
+void bindScreen(ExecutionContext* context);
 
-} // namespace kraken::binding::qjs
+}  // namespace kraken::binding::qjs
 
 class screen {};
 
-#endif // KRAKENBRIDGE_SCREEN_H
+#endif  // KRAKENBRIDGE_SCREEN_H

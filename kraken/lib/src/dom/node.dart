@@ -1,13 +1,11 @@
 /*
- * Copyright (C) 2019-present Alibaba Inc. All rights reserved.
- * Author: Kraken Team.
+ * Copyright (C) 2019-present The Kraken authors. All rights reserved.
  */
-import 'dart:ffi';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:kraken/bridge.dart';
 import 'package:kraken/dom.dart';
-import 'package:meta/meta.dart';
+import 'package:kraken/foundation.dart';
+import 'package:kraken/widget.dart';
 
 enum NodeType {
   ELEMENT_NODE,
@@ -17,25 +15,16 @@ enum NodeType {
   DOCUMENT_FRAGMENT_NODE,
 }
 
-class Comment extends Node {
-  Comment(int targetId, Pointer<NativeEventTarget> nativeEventTarget, ElementManager elementManager)
-      : super(NodeType.COMMENT_NODE, targetId, nativeEventTarget, elementManager);
-
-  @override
-  String get nodeName => '#comment';
-
-  @override
-  RenderObject? get renderer => null;
-
-  @override
-  dynamic handleJSCall(String method, List<dynamic> argv) {}
+enum RenderObjectManagerType {
+  FLUTTER_ELEMENT,
+  KRAKEN_NODE
 }
 
 /// [RenderObjectNode] provide the renderObject related abstract life cycle for
 /// [Node] or [Element]s, which wrap [RenderObject]s, which provide the actual
 /// rendering of the application.
 abstract class RenderObjectNode {
-  RenderObject? get renderer => throw FlutterError('This node has no render object implemented.');
+  RenderBox? get renderer;
 
   /// Creates an instance of the [RenderObject] class that this
   /// [RenderObjectNode] represents, using the configuration described by this
@@ -44,7 +33,7 @@ abstract class RenderObjectNode {
   /// This method should not do anything with the children of the render object.
   /// That should instead be handled by the method that overrides
   /// [Node.attachTo] in the object rendered by this object.
-  RenderObject createRenderer();
+  RenderBox createRenderer();
 
   /// The renderObject will be / has been insert into parent. You can apply properties
   /// to renderObject.
@@ -67,7 +56,7 @@ abstract class RenderObjectNode {
   void didDetachRenderer();
 }
 
-/// Lifecycles that triggered when NodeTree changes.
+/// Lifecycle that triggered when node tree changes.
 /// Ref: https://html.spec.whatwg.org/multipage/custom-elements.html#concept-custom-element-definition-lifecycle-callbacks
 abstract class LifecycleCallbacks {
   // Invoked each time the custom element is appended into a document-connected element.
@@ -87,13 +76,21 @@ abstract class LifecycleCallbacks {
 }
 
 abstract class Node extends EventTarget implements RenderObjectNode, LifecycleCallbacks {
+  KrakenElementToFlutterElementAdaptor? flutterElement;
+  KrakenElementToWidgetAdaptor? flutterWidget;
   List<Node> childNodes = [];
+  /// The Node.parentNode read-only property returns the parent of the specified node in the DOM tree.
   Node? parentNode;
   NodeType nodeType;
   String get nodeName;
 
-  /// The Node.parentNode read-only property returns the parent of the specified node in the DOM tree.
-  Node? get parent => parentNode;
+  // Children changed steps for node.
+  // https://dom.spec.whatwg.org/#concept-node-children-changed-ext
+  void childrenChanged() {}
+
+  // FIXME: The ownerDocument getter steps are to return null, if this is a document; otherwise this’s node document.
+  // https://dom.spec.whatwg.org/#dom-node-ownerdocument
+  late Document ownerDocument;
 
   /// The Node.parentElement read-only property returns the DOM node's parent Element,
   /// or null if the node either has no parent, or its parent isn't a DOM Element.
@@ -104,25 +101,18 @@ abstract class Node extends EventTarget implements RenderObjectNode, LifecycleCa
     return null;
   }
 
-  List<Element> get children {
-    List<Element> _children = [];
-    for (var child in childNodes) {
-      if (child is Element) _children.add(child);
-    }
-    return _children;
-  }
-
-  Node(this.nodeType, int targetId, Pointer<NativeEventTarget> nativeEventTarget, ElementManager elementManager)
-      : super(targetId, nativeEventTarget, elementManager);
+  Node(this.nodeType, [BindingContext? context]) : super(context);
 
   // If node is on the tree, the root parent is body.
   bool get isConnected {
+    // If renderer is attached, which means node must been connected.
+    if (isRendererAttached) return true;
+
     Node parent = this;
     while (parent.parentNode != null) {
       parent = parent.parentNode!;
     }
-    Document document = elementManager.document;
-    return this == document || parent == document;
+    return parent == ownerDocument;
   }
 
   Node get firstChild => childNodes.first;
@@ -145,48 +135,49 @@ abstract class Node extends EventTarget implements RenderObjectNode, LifecycleCa
   // Is child renderObject attached.
   bool get isRendererAttached => renderer != null && renderer!.attached;
 
+  bool contains(Node child) {
+    return childNodes.contains(child);
+  }
+
   /// Attach a renderObject to parent.
   void attachTo(Element parent, {RenderBox? after}) {}
 
-  /// Detach renderObject from parent.
-  void detach() {}
+  /// Unmount referenced render object.
+  void unmountRenderObject({ bool deep = false, bool keepFixedAlive = false }) {}
 
-  /// Dispose renderObject, but not do anything.
+  /// Release any resources held by this node.
   @override
   void dispose() {
+    parentNode?.removeChild(this);
+    assert(!isRendererAttached, 'Should unmount $this before calling dispose.');
     super.dispose();
-
-    parentNode = null;
-    for (int i = 0; i < childNodes.length; i ++) {
-      childNodes[i].parentNode = null;
-    }
-    childNodes.clear();
   }
 
   @override
-  dynamic handleJSCall(String method, List<dynamic> argv) {
-  }
-
-  @override
-  RenderObject createRenderer() => throw FlutterError('createRenderer function is not implemented.');
-
-  @override
-  void didAttachRenderer() {}
-
-  @override
-  void didDetachRenderer() {}
+  RenderBox createRenderer() => throw FlutterError('[createRenderer] is not implemented.');
 
   @override
   void willAttachRenderer() {}
 
   @override
+  void didAttachRenderer() {}
+
+  @override
   void willDetachRenderer() {}
+
+  @override
+  void didDetachRenderer() {}
 
   @mustCallSuper
   Node appendChild(Node child) {
     child._ensureOrphan();
     child.parentNode = this;
     childNodes.add(child);
+
+    // To insert a node into a parent before a child, run step 9 from the spec:
+    // 9. Run the children changed steps for parent when inserting a node into a parent.
+    // https://dom.spec.whatwg.org/#concept-node-insert
+    childrenChanged();
 
     if (child.isConnected) {
       child.connectedCallback();
@@ -195,38 +186,50 @@ abstract class Node extends EventTarget implements RenderObjectNode, LifecycleCa
     return child;
   }
 
-  bool contains(Node child) {
-    return childNodes.contains(child);
-  }
-
-  Node getRootNode() {
-    Node root = this;
-    while (root.parentNode != null) {
-      root = root.parentNode as Node;
-    }
-    return root;
-  }
-
   @mustCallSuper
-  Node insertBefore(Node newNode, Node referenceNode) {
-    newNode._ensureOrphan();
+  Node insertBefore(Node child, Node referenceNode) {
+    child._ensureOrphan();
     int referenceIndex = childNodes.indexOf(referenceNode);
     if (referenceIndex == -1) {
-      return appendChild(newNode);
+      return appendChild(child);
     } else {
-      newNode.parentNode = this;
-      childNodes.insert(referenceIndex, newNode);
-      if (newNode.isConnected) newNode.connectedCallback();
-      return newNode;
+      child.parentNode = this;
+      childNodes.insert(referenceIndex, child);
+
+      // To insert a node into a parent before a child, run step 9 from the spec:
+      // 9. Run the children changed steps for parent when inserting a node into a parent.
+      // https://dom.spec.whatwg.org/#concept-node-insert
+      childrenChanged();
+
+      if (child.isConnected) {
+        child.connectedCallback();
+      }
+      return child;
     }
   }
 
   @mustCallSuper
   Node removeChild(Node child) {
+    // Not remove node type which is not present in RenderObject tree such as Comment
+    // Only append node types which is visible in RenderObject tree
+    // Only remove childNode when it has parent
+    if (child.isRendererAttached) {
+      child.unmountRenderObject();
+    }
+
     if (childNodes.contains(child)) {
+      bool isConnected = child.isConnected;
       childNodes.remove(child);
       child.parentNode = null;
-      child.disconnectedCallback();
+
+      // To remove a node, run step 21 from the spec:
+      // 21. Run the children changed steps for parent.
+      // https://dom.spec.whatwg.org/#concept-node-remove
+      childrenChanged();
+
+      if (isConnected) {
+        child.disconnectedCallback();
+      }
     }
     return child;
   }
@@ -235,36 +238,63 @@ abstract class Node extends EventTarget implements RenderObjectNode, LifecycleCa
   Node? replaceChild(Node newNode, Node oldNode) {
     Node? replacedNode;
     if (childNodes.contains(oldNode)) {
+      newNode._ensureOrphan();
+      bool isOldNodeConnected = oldNode.isConnected;
       int referenceIndex = childNodes.indexOf(oldNode);
       oldNode.parentNode = null;
+      newNode.parentNode = this;
       replacedNode = oldNode;
       childNodes[referenceIndex] = newNode;
-      if (newNode.isConnected) {
-        newNode.disconnectedCallback();
+
+      // To insert a node into a parent before a child, run step 9 from the spec:
+      // 9. Run the children changed steps for parent when inserting a node into a parent.
+      // https://dom.spec.whatwg.org/#concept-node-insert
+      childrenChanged();
+
+      if (isOldNodeConnected) {
+        oldNode.disconnectedCallback();
         newNode.connectedCallback();
       }
-    } else {
-      appendChild(newNode);
     }
     return replacedNode;
   }
 
   /// Ensure node is not connected to a parent element.
   void _ensureOrphan() {
-    Node? _parent = parent;
+    Node? _parent = parentNode;
     if (_parent != null) {
       _parent.removeChild(this);
     }
   }
 
   /// Ensure child and child's child render object is attached.
-  void ensureChildAttached() {}
+  void ensureChildAttached() { }
 
   @override
-  void connectedCallback() {}
+  void connectedCallback() {
+    for (var child in childNodes) {
+      child.connectedCallback();
+    }
+  }
 
   @override
-  void disconnectedCallback() {}
+  void disconnectedCallback() {
+    for (var child in childNodes) {
+      child.disconnectedCallback();
+    }
+  }
+
+  @override
+  void dispatchEvent(Event event) {
+    if (disposed) return;
+    super.dispatchEvent(event);
+  }
+
+  @override
+  EventTarget? get parentEventTarget => parentNode;
+
+  // Whether Kraken Node need to manage render object.
+  RenderObjectManagerType get renderObjectManagerType => RenderObjectManagerType.KRAKEN_NODE;
 }
 
 /// https://dom.spec.whatwg.org/#dom-node-nodetype

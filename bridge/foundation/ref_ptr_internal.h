@@ -1,3 +1,6 @@
+/*
+ * Copyright (C) 2022-present The Kraken authors. All rights reserved.
+ */
 // Copyright 2013 The Flutter Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
@@ -10,9 +13,11 @@
 
 namespace fml {
 
-template <typename T> class RefPtr;
+template <typename T>
+class RefPtr;
 
-template <typename T> RefPtr<T> AdoptRef(T *ptr);
+template <typename T>
+RefPtr<T> AdoptRef(T* ptr);
 
 namespace internal {
 
@@ -20,14 +25,16 @@ namespace internal {
 // want to make |T|'s constructor private, but still use |MakeRefCounted()|
 // (below). (You can't friend partial specializations.) See |MakeRefCounted()|
 // and |FML_FRIEND_MAKE_REF_COUNTED()|.
-template <typename T> class MakeRefCountedHelper final {
-public:
-  template <typename... Args> static RefPtr<T> MakeRefCounted(Args &&... args) {
+template <typename T>
+class MakeRefCountedHelper final {
+ public:
+  template <typename... Args>
+  static RefPtr<T> MakeRefCounted(Args&&... args) {
     return AdoptRef<T>(new T(std::forward<Args>(args)...));
   }
 };
 
-} // namespace internal
-} // namespace fml
+}  // namespace internal
+}  // namespace fml
 
-#endif // FLUTTER_FML_MEMORY_REF_PTR_INTERNAL_H_
+#endif  // FLUTTER_FML_MEMORY_REF_PTR_INTERNAL_H_

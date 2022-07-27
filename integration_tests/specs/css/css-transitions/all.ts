@@ -12,16 +12,15 @@ describe('Transition all', () => {
     });
     container1.appendChild(document.createTextNode('DIV 1'));
 
+    container1.addEventListener('transitionend', async () => {
+      await snapshot();
+      done();
+    });
+
     requestAnimationFrame(() => {
       setElementStyle(container1, {
         top: 0,
       });
-
-      // Wait for animation finished.
-      setTimeout(async () => {
-        await snapshot();
-        done();
-      }, 1100);
     });
   });
 
@@ -155,18 +154,19 @@ describe('Transition all', () => {
     requestAnimationFrame(() => {
       container.style.width = '200px';
 
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         container.style.transition = 'height 0.5s ease 0.5s';
+
+        container.addEventListener('transitionend', async () => {
+          await snapshot();
+          doneFn();
+        });
+
         requestAnimationFrame(async () => {
           await snapshot();
           container.style.height = '200px';
-
-          setTimeout(async () => {
-            await snapshot();
-            doneFn();
-          }, 1200);
         });
-      }, 100);
+      });
     });
   });
 
@@ -183,6 +183,10 @@ describe('Transition all', () => {
       },
       [createText('1234')]
     );
+
+    container.addEventListener('transitionstart', () => {
+      doneFn.fail('transition will not start');
+    });
 
     BODY.appendChild(container);
     await snapshot();
@@ -245,20 +249,15 @@ describe('Transition all', () => {
     container1.appendChild(document.createTextNode('DIV'));
     await snapshot();
 
+    container1.addEventListener('transitionend', async () => {
+      await snapshot();
+      done();
+    });
+
     requestAnimationFrame(() => {
       setElementStyle(container1, {
         transform: 'translate3d(200px, 0, 0)',
       });
-
-      setTimeout(async () => {
-        await snapshot();
-      }, 500);
-
-      // Wait for animation finished.
-      setTimeout(async () => {
-        await snapshot();
-        done();
-      }, 1100);
     });
   });
 
@@ -275,21 +274,16 @@ describe('Transition all', () => {
     container1.appendChild(document.createTextNode('DIV'));
     await snapshot();
 
+    container1.addEventListener('transitionend', async () => {
+      await snapshot();
+      done();
+    });
+
     requestAnimationFrame(() => {
       setElementStyle(container1, {
-        transition: 'all 1s linear',
         transform: 'translate3d(200px, 0, 0)',
+        transition: 'all 1s linear',
       });
-
-      setTimeout(async () => {
-        await snapshot();
-      }, 500);
-
-      // Wait for animation finished.
-      setTimeout(async () => {
-        await snapshot();
-        done();
-      }, 1100);
     });
   });
 
@@ -306,21 +300,17 @@ describe('Transition all', () => {
     container1.appendChild(document.createTextNode('DIV'));
     await snapshot();
 
+    container1.addEventListener('transitionend', async () => {
+      await snapshot();
+      done();
+    });
+
     requestAnimationFrame(() => {
       setElementStyle(container1, {
         transform: 'translate3d(200px, 0, 0)',
         transition: 'all 1s linear',
       });
 
-      setTimeout(async () => {
-        await snapshot();
-      }, 500);
-
-      // Wait for animation finished.
-      setTimeout(async () => {
-        await snapshot();
-        done();
-      }, 1100);
     });
   });
 });
